@@ -1,0 +1,4 @@
+python3 -m unittest discover -s tests
+python3 -m compileall -q showrig
+node --check showrig/static/app.js
+node --check scripts/browser-check.mjs

@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Demo chat thread for recording the real Temporal Lens extension. Served over local HTTP; content scripts skip file:// pages. -->
+<html lang="en"><head><meta charset="utf-8"><title>#launch-planning</title>
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#1e1f22;color:#dbdee1;font:16px/1.5 "DejaVu Sans",system-ui,sans-serif;display:flex;height:100vh}
+aside{width:260px;background:#2b2d31;padding:22px 16px;box-sizing:border-box}
+aside h2{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#949ba4;margin:0 0 14px}
+aside div{padding:7px 10px;border-radius:6px;color:#949ba4;font-size:15px}
+aside .on{background:#404249;color:#f2f3f5}
+main{flex:1;display:flex;flex-direction:column}
+header{height:56px;display:flex;align-items:center;padding:0 24px;border-bottom:1px solid #111214;font-weight:700;font-size:17px}
+header span{color:#80848e;font-weight:400;margin-left:12px;font-size:14px}
+#feed{flex:1;overflow:auto;padding:18px 24px}
+article{display:grid;grid-template-columns:48px 1fr;gap:4px 14px;padding:12px 8px;border-radius:8px}
+article:hover{background:#2e3035}
+.av{grid-row:span 2;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff}
+.who{font-weight:700;color:#f2f3f5}
+.who time{font-weight:400;color:#949ba4;font-size:13px;margin-left:10px}
+p{margin:0;font-size:17px}
+</style></head>
+<body>
+<aside><h2>Studio crew</h2><div># general</div><div class="on"># launch-planning</div><div># design-review</div><div># random</div></aside>
+<main><header># launch-planning <span>Plans, deadlines, and the dates they really mean</span></header><div id="feed"></div></main>
+<script>
+const day = 864e5, now = Date.now();
+const msgs = [
+  ["Mia", "#5865f2", 41, "Kickoff is next Friday, so the deck needs to be ready by then."],
+  ["Noah", "#3ba55d", 23, "Beta testers get access in two weeks. Can we confirm the list tomorrow?"],
+  ["Ava", "#eb459e", 9, "Design review is this weekend. Final assets are due in 3 days."],
+  ["Liam", "#faa61a", 2, "Release notes go out tomorrow morning. Launch party is next Saturday!"],
+  ["Mia", "#5865f2", 0.004, "Retro is next Friday. Bring one thing that surprised you."],
+];
+const feed = document.getElementById("feed");
+// ?live=1 posts one message at a time, so the extension annotates each as it arrives;
+// ?manual=1 waits for playThread(), so a recording can start first.
+const params = new URLSearchParams(location.search);
+window.playThread = (gap = 1500) =>
+  msgs.forEach(([who, color, ago, text], i) => setTimeout(() => post(who, color, ago, text), 400 + i * gap));
+if (params.has("live")) playThread();
+else if (!params.has("manual")) msgs.forEach(m => post(...m));
+function post(who, color, ago, text) {
+  const at = new Date(now - ago * day - 3.4 * 36e5);
+  const a = document.createElement("article");
+  a.innerHTML = `<div class="av" style="background:${color}">${who[0]}</div><div class="who">${who}<time datetime="${at.toISOString()}">${at.toLocaleDateString("en-US",{month:"short",day:"numeric"})}, ${at.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</time></div><p>${text}</p>`;
+  feed.append(a);
+}
+</script></body></html>

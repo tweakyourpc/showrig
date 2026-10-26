@@ -1,0 +1,28 @@
+{
+  "title": "Showrig",
+  "kind": "demo",
+  "format": "1080p",
+  "style": {"accent": "#46d9b0", "titles": "rise", "transitions": "cinematic", "pushIn": 6, "showcase3d": true},
+  "voice": {"source": "tts", "voice": "af_heart", "say": {"Showrig": "Show rig", "FilmCraft": "Film Craft", "EffectCraft": "Effect Craft"}},
+  "music": {"source": "procedural", "mood": "bright"},
+  "captions": {"mode": "burn"},
+  "scenes": [
+    {"kind": "intro", "id": "intro", "title": "Showrig", "tagline": "A director's wizard for films made offline",
+     "lines": ["This film was made by Showrig, from a handful of answers and a storyboard."]},
+    {"kind": "segment", "title": "Answer the questions", "tagline": "The wizard writes the storyboard",
+     "subtitle": "showrig new my-film",
+     "shots": [{"capture": {"url": "board.html", "scale": 1.0, "actions": ["wait 1.5", "scroll 900 5", "wait 1"]}}],
+     "lines": ["You answer a director's questions: the kind of film, the look, the voice and the music.",
+               "Showrig writes a storyboard you can read, sign off and edit by hand."]},
+    {"kind": "card", "title": "Then it is procedural", "tagline": "Nothing leaves your machine",
+     "lines": ["After sign-off, every step runs on your own computer."]},
+    {"kind": "segment", "title": "One command", "tagline": "Footage, voice, 3D, titles, music, edit",
+     "subtitle": "showrig make my-film", "color": "#8b5cf6",
+     "shots": [{"capture": {"url": "terminal.html", "scale": 1.25,
+                            "actions": ["wait 1", "type #cmd showrig make launch", "wait 0.4", "press Enter", "wait 5"]}}],
+     "lines": ["One command records the screens, voices the script, renders the 3D stage in Blender and the titles in EffectCraft.",
+               "It ends in an editable FilmCraft project and a finished render."]},
+    {"kind": "outro", "id": "outro", "title": "Showrig", "tagline": "Your answers in, a finished film out",
+     "lines": ["Credits, voices and shots can all be swapped later."]}
+  ]
+}

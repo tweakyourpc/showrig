@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <script src="theme.js"></script>
+    <meta name="description" content="Wordsmith Studio: compose exact anagrams, animate the letters into their new places, and export a GIF or video. Works offline in your browser.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <title>Wordsmith Studio</title>
+    <style>
+        /* Bundled display faces, self-hosted from ../fonts (see fonts/LICENSES.md).
+           If the repo root is not published these simply fail to load and the
+           studio falls back with a message rather than mis-measuring. */
+            @font-face { font-family: 'Actor'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/actor.woff2') format('woff2'); }
+            @font-face { font-family: 'Allerta Stencil'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/allertastencil.woff2') format('woff2'); }
+            @font-face { font-family: 'Asset'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/asset.woff2') format('woff2'); }
+            @font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/audiowide.woff2') format('woff2'); }
+            @font-face { font-family: 'Barrio'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/barrio.woff2') format('woff2'); }
+            @font-face { font-family: 'Cabin Sketch'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/cabinsketch.woff2') format('woff2'); }
+            @font-face { font-family: 'Codystar'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/codystar.woff2') format('woff2'); }
+            @font-face { font-family: 'Combo'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/combo.woff2') format('woff2'); }
+            @font-face { font-family: 'Creepster'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/creepster.woff2') format('woff2'); }
+            @font-face { font-family: 'Dorsa'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/dorsa.woff2') format('woff2'); }
+            @font-face { font-family: 'Droid Serif'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/droidserif.woff2') format('woff2'); }
+            @font-face { font-family: 'Emilys Candy'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/emilyscandy.woff2') format('woff2'); }
+            @font-face { font-family: 'Erica One'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/ericaone.woff2') format('woff2'); }
+            @font-face { font-family: 'Flavors'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/flavors.woff2') format('woff2'); }
+            @font-face { font-family: 'Fredericka the Great'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/frederickathegreat.woff2') format('woff2'); }
+            @font-face { font-family: 'Gloria Hallelujah'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/gloriahallelujah.woff2') format('woff2'); }
+            @font-face { font-family: 'Londrina Sketch'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/londrinasketch.woff2') format('woff2'); }
+            @font-face { font-family: 'Medula One'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/medulaone.woff2') format('woff2'); }
+            @font-face { font-family: 'Megrim'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/megrim.woff2') format('woff2'); }
+            @font-face { font-family: 'Monoton'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/monoton.woff2') format('woff2'); }
+            @font-face { font-family: 'Pacifico'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/pacifico.woff2') format('woff2'); }
+            @font-face { font-family: 'Permanent Marker'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/permanentmarker.woff2') format('woff2'); }
+            @font-face { font-family: 'Pinyon Script'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/pinyonscript.woff2') format('woff2'); }
+            @font-face { font-family: 'Plaster'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/plaster.woff2') format('woff2'); }
+            @font-face { font-family: 'Poiret One'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/poiretone.woff2') format('woff2'); }
+            @font-face { font-family: 'Quicksand'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/quicksand.woff2') format('woff2'); }
+            @font-face { font-family: 'Reenie Beanie'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/reeniebeanie.woff2') format('woff2'); }
+            @font-face { font-family: 'Sevillana'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/sevillana.woff2') format('woff2'); }
+            @font-face { font-family: 'Seymour One'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/seymourone.woff2') format('woff2'); }
+            @font-face { font-family: 'Sigmar One'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/sigmarone.woff2') format('woff2'); }
+            @font-face { font-family: 'Six Caps'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/sixcaps.woff2') format('woff2'); }
+            @font-face { font-family: 'Special Elite'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/specialelite.woff2') format('woff2'); }
+            @font-face { font-family: 'UnifrakturMaguntia'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/unifrakturmaguntia.woff2') format('woff2'); }
+            @font-face { font-family: 'Wire One'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/wireone.woff2') format('woff2'); }
+    </style>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-workspace="compose">
+    <a class="skip-link" href="#workspaces">Skip to the workspace</a>
+
+    <header class="topbar" id="topbar">
+        <a class="brand" href="./" aria-label="Wordsmith Studio home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wordsmith Studio</span>
+        </a>
+
+        <nav class="ws-switch" id="wsSwitch" aria-label="Workspace">
+            <div role="tablist" aria-label="Workspace" class="ws-tabs">
+                <button type="button" role="tab" id="tab-compose" aria-controls="ws-compose" data-ws="compose" data-ws-action="workspace">
+                    <span class="ws-icon" data-icon="compose"></span><span class="ws-label">Compose</span>
+                </button>
+                <button type="button" role="tab" id="tab-animate" aria-controls="ws-animate" data-ws="animate" data-ws-action="workspace">
+                    <span class="ws-icon" data-icon="animate"></span><span class="ws-label">Animate</span>
+                </button>
+                <button type="button" role="tab" id="tab-export" aria-controls="ws-export" data-ws="export" data-ws-action="workspace">
+                    <span class="ws-icon" data-icon="export"></span><span class="ws-label">Export</span>
+                </button>
+            </div>
+        </nav>
+
+        <div class="exactness" id="exactness" data-status="no-source" role="status" aria-live="polite" aria-atomic="true">
+            <span class="exactness-shape" aria-hidden="true"></span>
+            <span class="exactness-text" id="exactnessText">No source text yet</span>
+        </div>
+
+        <div class="topbar-actions">
+            <button type="button" class="icon-btn" id="undoBtn" aria-label="Undo" title="Undo (Ctrl+Z)" disabled><span data-icon="undo"></span></button>
+            <button type="button" class="icon-btn" id="redoBtn" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled><span data-icon="redo"></span></button>
+            <div class="menu" id="projectMenu">
+                <button type="button" class="btn btn-quiet" id="projectMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="projectMenuList">
+                    <span data-icon="menu"></span><span class="btn-label">Project</span>
+                </button>
+                <div class="menu-list" id="projectMenuList" role="menu" hidden>
+                    <button type="button" role="menuitem" data-action="open-file">Open file…</button>
+                    <button type="button" role="menuitem" data-action="reopen" id="reopenItem" hidden>Reopen last file</button>
+                    <button type="button" role="menuitem" data-action="save-project">Save project file</button>
+                    <button type="button" role="menuitem" data-action="save-text">Save as Anagram Artist .txt</button>
+                    <button type="button" role="menuitem" data-action="copy-design">Copy design settings (JSON)</button>
+                    <button type="button" role="menuitem" data-action="paste-design">Paste design settings…</button>
+                    <button type="button" role="menuitem" data-action="new">New project</button>
+                    <hr role="separator">
+                    <button type="button" role="menuitem" data-action="settings">Settings…</button>
+                    <button type="button" role="menuitem" data-action="classic">Switch to Classic presentation</button>
+                    <button type="button" role="menuitem" data-action="help">How it works</button>
+                </div>
+            </div>
+            <input type="file" id="openFileInput" accept=".json,.txt,.wsp,application/json,text/plain" hidden>
+        </div>
+    </header>
+
+    <main id="workspaces" class="workspaces" tabindex="-1">
+        <!-- ============================ COMPOSE ============================ -->
+        <section id="ws-compose" class="ws ws-compose" role="tabpanel" aria-labelledby="tab-compose">
+            <div class="compose-editors">
+                <div class="field">
+                    <div class="field-head">
+                        <label for="sourceInput" class="field-label">Source</label>
+                        <span class="field-meta" id="sourceMeta"></span>
+                    </div>
+                    <textarea id="sourceInput" class="editor editor-source" rows="2" spellcheck="false" autocomplete="off" autocapitalize="off"
+                        placeholder="The phrase to rearrange, e.g. Astronomer" aria-describedby="sourceHelp"></textarea>
+                    <p class="field-help" id="sourceHelp">Letters a to z count. Case, spaces and punctuation are ignored; text after // is a comment.</p>
+                </div>
+
+                <div class="field">
+                    <div class="field-head">
+                        <label for="compositionInput" class="field-label">Composition</label>
+                        <span class="field-meta" id="compositionMeta"></span>
+                    </div>
+                    <textarea id="compositionInput" class="editor editor-composition" rows="4" spellcheck="false" autocomplete="off" autocapitalize="off"
+                        placeholder="Build the anagram here, or tap suggested words" aria-describedby="policyNote"></textarea>
+                    <p class="field-help field-warn" id="policyNote" hidden></p>
+                    <div class="check-bar">
+                        <button type="button" class="btn btn-small" id="checkBtn" aria-pressed="false" aria-controls="checkResults">Check words</button>
+                        <span class="check-counts" id="checkCounts" aria-live="polite"></span>
+                    </div>
+                    <div class="check-results" id="checkResults" hidden></div>
+                </div>
+
+                <section class="ledger" id="ledger" aria-labelledby="ledgerTitle">
+                    <div class="ledger-head">
+                        <h2 class="section-title" id="ledgerTitle">Letters</h2>
+                        <p class="ledger-summary" id="ledgerSummary" aria-live="polite">No source text yet</p>
+                    </div>
+                    <div class="ledger-rows">
+                        <div class="ledger-row" id="ledgerUnusedRow">
+                            <span class="ledger-row-label">Unused</span>
+                            <ul class="chips" id="ledgerUnused" aria-label="Unused letters"></ul>
+                        </div>
+                        <div class="ledger-row" id="ledgerOverRow" hidden>
+                            <span class="ledger-row-label">Over</span>
+                            <ul class="chips chips-over" id="ledgerOver" aria-label="Overused letters"></ul>
+                        </div>
+                    </div>
+                    <p class="ledger-foot" id="ledgerFoot"></p>
+                    <details class="balance" id="balanceDetails">
+                        <summary>Letter balance</summary>
+                        <p class="field-help">How the unused letters compare with an ideal English mix. Use up letters marked “plenty”; letters marked “short” are hard to place.</p>
+                        <div class="balance-body" id="balanceBody"></div>
+                    </details>
+                </section>
+
+                <div class="compose-actions">
+                    <button type="button" class="btn btn-primary" id="animateThisBtn" data-ws-action="transfer-to-studio">
+                        <span class="btn-label">Animate this</span><span data-icon="arrowRight"></span>
+                    </button>
+                    <button type="button" class="btn" id="tweakUndoBtn" hidden>Restore tweaked word</button>
+                    <button type="button" class="btn btn-quiet" id="openWordsBtn" aria-controls="wordsPanel" aria-expanded="false">
+                        <span data-icon="sheet"></span><span class="btn-label" id="openWordsLabel">Words</span>
+                    </button>
+                </div>
+            </div>
+
+            <aside class="words" id="wordsPanel" aria-labelledby="wordsTitle" data-sheet="closed">
+                <div class="sheet-handle">
+                    <h2 class="section-title" id="wordsTitle">Words</h2>
+                    <button type="button" class="icon-btn sheet-close" id="closeWordsBtn" aria-label="Close words"><span data-icon="close"></span></button>
+                </div>
+
+                <fieldset class="mode" id="modeGroup">
+                    <legend class="mode-legend">Tap a word to</legend>
+                    <div class="segmented" role="radiogroup" aria-label="Tap a word to">
+                        <label class="seg"><input type="radio" name="target" value="ana" checked><span>Insert at cursor</span></label>
+                        <label class="seg"><input type="radio" name="target" value="tweak"><span>Replace selected word</span></label>
+                        <label class="seg"><input type="radio" name="target" value="original"><span>Add to source</span></label>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="freeToggle" role="switch">
+                        <span class="switch-track" aria-hidden="true"></span>
+                        <span>Free: ignore letter limits</span>
+                    </label>
+                    <p class="mode-help" id="modeHelp"></p>
+                    <div class="tweak-match" id="tweakMatch" hidden>
+                        <span class="tweak-match-label">Match the selected word’s</span>
+                        <label class="check"><input type="checkbox" data-match="rhyme"> rhyme</label>
+                        <label class="check"><input type="checkbox" data-match="synonym"> meaning</label>
+                        <label class="check"><input type="checkbox" data-match="syllable"> syllables</label>
+                        <label class="check"><input type="checkbox" data-match="pos"> part of speech</label>
+                    </div>
+                </fieldset>
+
+                <div class="subtabs" role="tablist" aria-label="Word search">
+                    <button type="button" role="tab" id="tab-suggestions" aria-controls="suggestionsPanel" data-search="suggestions">Suggestions <span class="count" id="suggestionCount"></span></button>
+                    <button type="button" role="tab" id="tab-finder" aria-controls="finderPanel" data-search="finder">Finish it <span class="count" id="finderCount"></span></button>
+                </div>
+
+                <p class="target-line" id="targetLine" aria-live="polite"></p>
+
+                <div class="filter-bar">
+                    <button type="button" class="btn btn-small" id="filtersToggle" aria-expanded="false" aria-controls="filtersPanel">
+                        <span data-icon="filter"></span><span class="btn-label">Filters</span><span class="count" id="filterCount"></span>
+                    </button>
+                    <ul class="chips chips-filters" id="activeFilters" aria-label="Active filters"></ul>
+                    <button type="button" class="btn btn-small btn-quiet" id="clearFiltersBtn" hidden
+                        title="Clear word filters. Commonness and vowel settings stay, as in Anagram Artist.">Clear</button>
+                    <button type="button" class="btn btn-small btn-quiet" id="resetFiltersBtn" hidden>Reset all</button>
+                </div>
+
+                <div class="filters" id="filtersPanel" hidden>
+                    <p class="filters-note" id="filtersNote"></p>
+                    <div class="filter-grid">
+                        <div class="ffield" data-filter="minLength maxLength">
+                            <span class="ffield-label" id="lenLabel">Length</span>
+                            <div class="ffield-inline" role="group" aria-labelledby="lenLabel">
+                                <input type="number" id="fMinLength" min="1" max="15" inputmode="numeric" aria-label="Minimum length">
+                                <span aria-hidden="true">to</span>
+                                <input type="number" id="fMaxLength" min="1" max="15" inputmode="numeric" aria-label="Maximum length">
+                            </div>
+                        </div>
+                        <div class="ffield" data-filter="startsWith endsWith">
+                            <span class="ffield-label" id="patLabel">Starts / ends with</span>
+                            <div class="ffield-inline" role="group" aria-labelledby="patLabel">
+                                <input type="text" id="fStartsWith" aria-label="Starts with" autocapitalize="off" spellcheck="false">
+                                <input type="text" id="fEndsWith" aria-label="Ends with" autocapitalize="off" spellcheck="false">
+                            </div>
+                        </div>
+                        <div class="ffield ffield-wide" data-filter="commonnessLevel">
+                            <span class="ffield-label" id="commonLabel">Commonness</span>
+                            <div class="segmented segmented-small" role="radiogroup" aria-labelledby="commonLabel" id="fCommonness">
+                                <label class="seg"><input type="radio" name="commonness" value="1"><span>Most common</span></label>
+                                <label class="seg"><input type="radio" name="commonness" value="2"><span>2</span></label>
+                                <label class="seg"><input type="radio" name="commonness" value="3"><span>3</span></label>
+                                <label class="seg"><input type="radio" name="commonness" value="4"><span>4</span></label>
+                                <label class="seg"><input type="radio" name="commonness" value="5"><span>All</span></label>
+                            </div>
+                        </div>
+                        <div class="ffield ffield-wide" data-filter="posFilter">
+                            <span class="ffield-label" id="posLabel">Part of speech</span>
+                            <div class="toggles" role="group" aria-labelledby="posLabel" id="fPos">
+                                <button type="button" class="toggle" data-pos="noun" aria-pressed="false">Noun</button>
+                                <button type="button" class="toggle" data-pos="verb" aria-pressed="false">Verb</button>
+                                <button type="button" class="toggle" data-pos="adjective" aria-pressed="false">Adjective</button>
+                                <button type="button" class="toggle" data-pos="adverb" aria-pressed="false">Adverb</button>
+                                <button type="button" class="toggle" data-pos="other" aria-pressed="false">Other</button>
+                            </div>
+                        </div>
+                        <label class="check ffield" data-filter="noDuplicates"><input type="checkbox" id="fNoDuplicates"> No repeated letters in a word</label>
+                    </div>
+
+                    <details class="advanced" id="advancedFilters">
+                        <summary>More filters: sounds, meaning, constraints</summary>
+                        <div class="filter-grid">
+                            <div class="ffield" data-filter="useBox">
+                                <label class="ffield-label" for="fUse">Must use letters (U)</label>
+                                <input type="text" id="fUse" autocapitalize="off" spellcheck="false" aria-describedby="fUseHelp">
+                                <p class="ffield-help" id="fUseHelp">Letters every word must contain, e.g. <code>eta</code>; <code>-bcd</code> excludes letters.</p>
+                            </div>
+                            <div class="ffield" data-filter="syllableBox">
+                                <label class="ffield-label" for="fSyllables">Syllables and stress (ss)</label>
+                                <input type="text" id="fSyllables" autocapitalize="off" spellcheck="false" aria-describedby="fSylHelp">
+                                <p class="ffield-help" id="fSylHelp"><code>s</code> unstressed, <code>S</code> stressed, <code>x</code> either; <code>xx</code> = two syllables.</p>
+                            </div>
+                            <div class="ffield" data-filter="rhymeBox rhymeTwoSyl">
+                                <label class="ffield-label" for="fRhyme">Rhymes with (R)</label>
+                                <input type="text" id="fRhyme" autocapitalize="off" spellcheck="false">
+                                <label class="check"><input type="checkbox" id="fRhymeTwo"> two-syllable rhyme</label>
+                            </div>
+                            <div class="ffield" data-filter="synonymBox">
+                                <label class="ffield-label" for="fSynonym">Means the same as (S)</label>
+                                <input type="text" id="fSynonym" autocapitalize="off" spellcheck="false">
+                            </div>
+                            <div class="ffield" data-filter="vowelPercent">
+                                <label class="ffield-label" for="fVowelPct">Vowel share of word</label>
+                                <select id="fVowelPct">
+                                    <option value="20">up to 20%</option><option value="30">up to 30%</option><option value="35">up to 35%</option>
+                                    <option value="all">Any</option><option value="50">at least 50%</option><option value="60">at least 60%</option>
+                                </select>
+                            </div>
+                            <div class="ffield" data-filter="vowelPerSyllable">
+                                <label class="ffield-label" for="fVowelSyl">Vowels per syllable</label>
+                                <select id="fVowelSyl">
+                                    <option value="1">1</option><option value="all">Any</option><option value="1.5">up to 1.5</option><option value="2">up to 2</option><option value="&gt;2">more than 2</option>
+                                </select>
+                            </div>
+                            <div class="ffield ffield-wide" data-filter="constraintBox">
+                                <label class="ffield-label" for="fConstraint">Constraints (C box)</label>
+                                <textarea id="fConstraint" rows="2" autocapitalize="off" spellcheck="false" aria-describedby="fConHelp"></textarea>
+                                <p class="ffield-help" id="fConHelp">Space-separated commands such as <code>ln&gt;4</code>, <code>vp&lt;50</code>, <code>sh=0</code>.
+                                    <a href="../docs/constraints.html" target="_blank" rel="noopener">Constraint reference</a></p>
+                            </div>
+                            <div class="ffield ffield-wide" data-filter="constraintList">
+                                <label class="ffield-label" for="fConstraintList">Constraint list (one entry per word)</label>
+                                <textarea id="fConstraintList" rows="2" autocapitalize="off" spellcheck="false" aria-describedby="fListHelp"></textarea>
+                                <p class="ffield-help" id="fListHelp">Each space-separated entry constrains the word at that position; <code>.</code> is a placeholder and <code>[text]</code> is ignored.</p>
+                                <p class="ffield-help" id="conPosition" aria-live="polite"></p>
+                                <div class="btn-row">
+                                    <button type="button" class="btn btn-small" id="conOpenBtn">Open list…</button>
+                                    <button type="button" class="btn btn-small" id="conSaveBtn">Save list</button>
+                                    <button type="button" class="btn btn-small btn-quiet" id="conClearBtn">Clear list</button>
+                                </div>
+                                <input type="file" id="conFileInput" accept=".con,.txt,text/plain" hidden>
+                            </div>
+                            <details class="ffield ffield-wide trial" id="trialDetails">
+                                <summary>Test a word’s constraint values</summary>
+                                <div class="trial-grid">
+                                    <label class="ffield"><span class="ffield-label">Word</span><input type="text" id="trialWord" autocapitalize="off" spellcheck="false"></label>
+                                    <label class="ffield"><span class="ffield-label">Value</span><input type="text" id="trialName1" placeholder="s" autocapitalize="off" spellcheck="false"></label>
+                                    <label class="ffield"><span class="ffield-label">Value</span><input type="text" id="trialName2" placeholder="rn%9" autocapitalize="off" spellcheck="false"></label>
+                                    <label class="ffield"><span class="ffield-label">Value</span><input type="text" id="trialName3" placeholder="sc" autocapitalize="off" spellcheck="false"></label>
+                                </div>
+                                <p class="trial-result" id="trialResult" aria-live="polite"></p>
+                            </details>
+                            <div class="ffield" data-filter="spelling">
+                                <label class="ffield-label" for="fSpelling">Spelling</label>
+                                <select id="fSpelling">
+                                    <option value="both">American and British</option><option value="am">American only</option><option value="br">British only</option>
+                                </select>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="word-results">
+                    <div id="suggestionsPanel" role="tabpanel" aria-labelledby="tab-suggestions" class="results-panel">
+                        <div class="length-filter" id="lengthFilter" role="radiogroup" aria-label="Word length"></div>
+                        <p class="results-state" id="suggestionState" aria-live="polite"></p>
+                        <ul class="word-grid" id="suggestionList" aria-label="Suggested words"></ul>
+                        <button type="button" class="btn btn-small" id="moreSuggestionsBtn" hidden>Show more</button>
+                    </div>
+
+                    <div id="finderPanel" role="tabpanel" aria-labelledby="tab-finder" class="results-panel" hidden>
+                        <div class="finder-bar">
+                            <p class="results-state" id="finderState" aria-live="polite"></p>
+                            <button type="button" class="btn btn-small" id="finderRunBtn">Search again</button>
+                        </div>
+                        <details class="finder-settings" id="finderSettings">
+                            <summary>Finder settings</summary>
+                            <div class="filter-grid">
+                                <div class="ffield">
+                                    <label class="ffield-label" for="fdMaxWords">Up to words per phrase</label>
+                                    <select id="fdMaxWords"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+                                </div>
+                                <div class="ffield">
+                                    <label class="ffield-label" for="fdMinLength">Shortest word</label>
+                                    <input type="number" id="fdMinLength" min="1" max="25" inputmode="numeric">
+                                </div>
+                                <label class="check ffield"><input type="checkbox" id="fdRepeat"> Allow a word twice</label>
+                                <label class="check ffield"><input type="checkbox" id="fdBan"> Ban source words of at least
+                                    <input type="number" id="fdBanLen" min="1" max="25" class="inline-num" aria-label="Minimum banned word length"> letters</label>
+                            </div>
+                        </details>
+                        <div class="finder-columns" id="finderColumns"></div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <!-- ============================ ANIMATE ============================ -->
+        <section id="ws-animate" class="ws ws-animate" role="tabpanel" aria-labelledby="tab-animate" hidden>
+            <div class="stage">
+                <div class="stage-bar">
+                    <p class="stage-phrases" id="phraseTrack"></p>
+                    <div class="stage-tools">
+                        <label class="sr-only" for="zoomSelect">Preview zoom</label>
+                        <select id="zoomSelect" class="select-small" aria-describedby="sizeReadout">
+                            <option value="fit">Fit</option><option value="0.5">50%</option><option value="1">100%</option><option value="2">200%</option>
+                        </select>
+                        <span class="size-readout" id="sizeReadout"></span>
+                    </div>
+                </div>
+                <div class="stage-viewport" id="stageViewport">
+                    <canvas id="preview" role="img" aria-label="Animation preview" aria-describedby="frameDescription"></canvas>
+                </div>
+                <p class="sr-only" id="frameDescription"></p>
+                <div class="transport" id="transport" role="group" aria-label="Playback">
+                    <button type="button" class="icon-btn" id="stepBack" aria-label="Previous frame" title="Previous frame (,)"><span data-icon="stepBack"></span></button>
+                    <button type="button" class="icon-btn icon-btn-primary" id="playPause" aria-label="Play" title="Play or pause (Space)"><span data-icon="play"></span></button>
+                    <button type="button" class="icon-btn" id="stepFwd" aria-label="Next frame" title="Next frame (.)"><span data-icon="stepFwd"></span></button>
+                    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Playhead position">
+                    <span class="time" id="timeReadout" aria-hidden="true"></span>
+                    <label class="check loop"><input type="checkbox" id="loopToggle" checked> Loop</label>
+                </div>
+                <p class="stage-status" id="animateStatus" role="status" aria-live="polite"></p>
+                <section class="presets" aria-labelledby="presetsTitle">
+                    <div class="presets-head">
+                        <h2 class="section-title" id="presetsTitle">Looks</h2>
+                        <div class="preset-trial" id="presetTrial" hidden>
+                            <span id="presetTrialText"></span>
+                            <button type="button" class="btn btn-small btn-primary" id="presetKeep">Keep</button>
+                            <button type="button" class="btn btn-small" id="presetRevert">Revert</button>
+                        </div>
+                    </div>
+                    <ul class="preset-list" id="presetList" aria-label="Preset looks"></ul>
+                    <form class="preset-save" id="presetSaveForm">
+                        <label for="presetName" class="sr-only">Name for this look</label>
+                        <input type="text" id="presetName" placeholder="Name this look to save it" autocomplete="off" maxlength="60">
+                        <button type="submit" class="btn btn-small">Save look</button>
+                    </form>
+                </section>
+            </div>
+            <aside class="inspector" id="inspector" aria-label="Design settings">
+                <div class="inspector-head">
+                    <button type="button" class="btn btn-quiet btn-small" id="backToComposeBtn" data-ws-action="transfer-to-compose">
+                        <span data-icon="arrowLeft"></span><span class="btn-label">Edit words</span>
+                    </button>
+                </div>
+                <div class="panel" id="inspectorPanel"></div>
+            </aside>
+        </section>
+
+        <!-- ============================ EXPORT ============================ -->
+        <section id="ws-export" class="ws ws-export" role="tabpanel" aria-labelledby="tab-export" hidden>
+            <div class="export-main">
+                <h2 class="section-title">Export</h2>
+                <fieldset class="formats" id="formatGroup">
+                    <legend class="field-label">Format</legend>
+                    <label class="format-card"><input type="radio" name="format" value="gif" checked>
+                        <span class="format-name">GIF</span><span class="format-note" id="fmtGifNote">Plays everywhere. No transparency.</span></label>
+                    <label class="format-card"><input type="radio" name="format" value="mp4">
+                        <span class="format-name">MP4</span><span class="format-note" id="fmtMp4Note">Checking…</span></label>
+                    <label class="format-card"><input type="radio" name="format" value="webm">
+                        <span class="format-name">WebM</span><span class="format-note" id="fmtWebmNote">Checking…</span></label>
+                </fieldset>
+                <div class="panel export-settings" id="exportSettings"></div>
+                <dl class="export-summary" id="exportSummary"></dl>
+                <p class="export-gate" id="exportGate" role="alert" hidden></p>
+                <div class="export-actions">
+                    <button type="button" class="btn btn-primary" id="exportStartBtn"><span data-icon="export"></span><span class="btn-label">Export</span></button>
+                    <button type="button" class="btn" id="exportCancelBtn" hidden>Cancel</button>
+                </div>
+                <div class="export-progress" id="exportProgressWrap" hidden>
+                    <progress id="exportProgress" max="1" value="0" aria-labelledby="exportProgressLabel"></progress>
+                    <span id="exportProgressLabel" aria-live="polite"></span>
+                </div>
+            </div>
+            <aside class="export-result" id="exportResult" aria-labelledby="resultTitle">
+                <h2 class="section-title" id="resultTitle">Result</h2>
+                <div class="result-empty" id="resultEmpty">Your export will appear here, ready to download.</div>
+                <div class="result-body" id="resultBody" hidden></div>
+            </aside>
+        </section>
+    </main>
+
+    <div class="sr-only" id="liveRegion" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <dialog class="dialog" id="helpDialog" aria-labelledby="helpTitle">
+        <form method="dialog" class="dialog-inner">
+            <h2 id="helpTitle">How Wordsmith Studio works</h2>
+            <ol class="help-steps">
+                <li><strong>Compose.</strong> Type a source phrase and build an anagram of it. The letter ledger shows what is left or overused; suggestions only offer words you can still make.</li>
+                <li><strong>Refine.</strong> Choose <em>Replace selected word</em> to try alternatives for a word, or <em>Finish it</em> to find every way to use the remaining letters.</li>
+                <li><strong>Animate.</strong> <em>Animate this</em> sends the pair to the stage, where each letter travels to its new place. Try a look, then adjust anything in the inspector.</li>
+                <li><strong>Export.</strong> Make a GIF or video, encoded on this device. Nothing is uploaded.</li>
+            </ol>
+            <p class="help-keys">Shortcuts: <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> redo, <kbd>Alt</kbd>+<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> switch workspace, <kbd>Space</kbd> play or pause in Animate, <kbd>,</kbd> and <kbd>.</kbd> step a frame.</p>
+            <div class="dialog-actions"><button class="btn btn-primary" value="close">Got it</button></div>
+        </form>
+    </dialog>
+
+    <dialog class="dialog dialog-sheet" id="settingsDialog" aria-labelledby="settingsTitle">
+        <form method="dialog" class="dialog-inner settings" id="settingsForm">
+            <h2 id="settingsTitle">Settings</h2>
+            <fieldset class="settings-group">
+                <legend>Appearance</legend>
+                <label class="settings-inline" for="setTheme">Color mode
+                    <select id="setTheme" aria-describedby="themeHelp">
+                        <option value="system">Use device setting</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="sepia">Warm paper</option>
+                        <option value="contrast">High contrast</option>
+                    </select>
+                </label>
+                <p class="field-help" id="themeHelp">Changes the editor colors, not your animation or exports. Remembered on this browser.</p>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Check words</legend>
+                <label class="check"><input type="checkbox" id="setDictCheck"> Flag words not in the dictionary</label>
+                <label class="check"><input type="checkbox" id="setConstrCheck"> Flag words that break a constraint</label>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Constraints</legend>
+                <label class="check"><input type="checkbox" id="setReflectList"> Apply the constraint list to suggestions</label>
+                <label class="check"><input type="checkbox" id="setEmptyC"> Clear also empties the C box</label>
+                <label class="settings-inline">Skip constraints for words of up to
+                    <input type="number" id="setThreshold" min="0" max="25" inputmode="numeric" class="inline-num"> letters (0 means never)</label>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Letter balance order</legend>
+                <label class="check"><input type="radio" name="histOrder" value="groups"> Vowels, then consonants</label>
+                <label class="check"><input type="radio" name="histOrder" value="single"> By English frequency</label>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Dictionary</legend>
+                <p class="field-help" id="setDictName"></p>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-small" id="setDictChange">Use a word list file…</button>
+                    <button type="button" class="btn btn-small btn-quiet" id="setDictRestore">Restore the standard dictionary</button>
+                </div>
+                <p class="field-help">A word list is a text file with one word per line. It lasts for this session, and words the standard dictionary knows keep their properties.</p>
+                <input type="file" id="dictFileInput" accept=".txt,.dic,text/plain" hidden>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Editor text</legend>
+                <label class="settings-inline">Size
+                    <select id="setTextSize"><option value="s">Small</option><option value="m">Medium</option><option value="l">Large</option><option value="xl">Extra large</option></select></label>
+                <label class="settings-inline">Font
+                    <select id="setTextFont"><option value="serif">Serif</option><option value="sans">Sans serif</option><option value="mono">Monospace</option><option value="georgia">Georgia</option><option value="palatino">Palatino</option><option value="times">Times New Roman</option></select></label>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Leaving the page</legend>
+                <label class="check"><input type="checkbox" id="setExitNag"> Warn before leaving if changes could not be saved</label>
+            </fieldset>
+            <div class="dialog-actions"><button class="btn btn-primary" value="close">Done</button></div>
+        </form>
+    </dialog>
+
+    <dialog class="dialog" id="pasteDialog" aria-labelledby="pasteTitle">
+        <form method="dialog" class="dialog-inner" id="pasteForm">
+            <h2 id="pasteTitle">Paste design settings</h2>
+            <label for="pasteText" class="field-label">Studio settings JSON</label>
+            <textarea id="pasteText" rows="8" spellcheck="false" aria-describedby="pasteHelp"></textarea>
+            <p class="field-help" id="pasteHelp">Paste JSON copied from Wordsmith Studio. Values outside their ranges are adjusted and reported; unknown fields are kept.</p>
+            <p class="field-help field-warn" id="pasteError" role="alert" hidden></p>
+            <div class="dialog-actions">
+                <button type="button" class="btn" value="cancel" id="pasteCancel">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="pasteApply">Apply</button>
+            </div>
+        </form>
+    </dialog>
+
+    <noscript><p class="noscript">Wordsmith Studio needs JavaScript. Everything runs on your device.</p></noscript>
+
+    <script>globalThis.WORDSMITH_STANDALONE = true; globalThis.WORDSMITH_DICTIONARY_BASE = 'program_files/';</script>
+    <script src="libs/gif.js"></script>
+    <script src="bundle.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Tool calls</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1714; }
+  body { display: grid; place-items: center; font: 17px/1.55 "JetBrains Mono", "Noto Sans Mono", "DejaVu Sans Mono", monospace; }
+  .term { width: 1680px; height: 900px; background: #0f1d19; border: 1px solid #24433a; border-radius: 14px;
+          box-shadow: 0 0 80px #46d9b022; display: flex; flex-direction: column; overflow: hidden; }
+  .bar { padding: 14px 20px; color: #7f9c93; border-bottom: 1px solid #24433a; display: flex; gap: 10px; align-items: center; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #2c4a41; }
+  .bar b { color: #cfe6de; font-weight: 600; margin-left: 10px; }
+  .log { flex: 1; padding: 18px 26px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+  .cmd { color: #e8f3ef; margin-top: 10px; white-space: pre-wrap; }
+  .cmd::before { content: "$ "; color: #46d9b0; }
+  .out { color: #8fb3a7; white-space: pre-wrap; }
+  .cursor { display: inline-block; width: .6em; height: 1.1em; background: #46d9b0; vertical-align: text-bottom; }
+</style></head>
+<body><div class="term"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+<b>~/films/tweakyourpc-promo</b><span>tool calls, from the build logs</span></div><div class="log" id="log"></div></div>
+<script>
+const LINES = [["cmd", "python tts_kokoro.py ~/films/tweakyourpc-promo/work/voice/tts-job.json"], ["out", "~/films/tweakyourpc-promo/work/voice/hello-01.raw.wav 2.17"], ["out", "~/films/tweakyourpc-promo/work/voice/hello-02.raw.wav 10.8"], ["out", "~/films/tweakyourpc-promo/work/voice/hello-03.raw.wav 6.4"], ["cmd", "effectcraft-cli --empty --save-as ~/films/tweakyourpc-promo/work/titles/hello.ecproj script ~/films/tweakyourpc-promo/work/titles/hello.jsx"], ["out", "{\"name\":\"Title Christopher Davis\",\"type\":\"[object CompItem]\"}"], ["out", "saved ~/films/tweakyourpc-promo/work/titles/hello.ecproj"], ["cmd", "effectcraft-cli --project ~/films/tweakyourpc-promo/work/titles/hello.ecproj --gpu render --out ~/films/tweakyourpc-promo/work/titles/hello.mov --for\u2026"], ["out", "Title Christopher Davis \u2192 ~/films/tweakyourpc-promo/work/titles/hello.mov (1920\u00d71080, 653 frames, Custom)"], ["out", "done: Title Christopher Davis \u2192 ~/films/tweakyourpc-promo/work/titles/hello.mov in 111.10s"], ["cmd", "effectcraft-cli --project ~/films/tweakyourpc-promo/work/titles/game-night.ecproj --gpu render --out ~/films/tweakyourpc-promo/work/titles/game-night\u2026"], ["out", "Title Game Night \u2192 ~/films/tweakyourpc-promo/work/titles/game-night.mov (1920\u00d71080, 210 frames, Custom)"], ["out", "done: Title Game Night \u2192 ~/films/tweakyourpc-promo/work/titles/game-night.mov in 29.32s"], ["cmd", "blender -b -P blender_stage.py -- ~/films/tweakyourpc-promo/work/stage/intro.job.json ~/films/tweakyourpc-promo/work/stage/intro-aof2sluy.frames"], ["out", "Info: Total files 6 | Changed 6 | Failed 0"], ["out", "Info: Saved \"intro.blend\""], ["out", "Fra:1 Mem:69.52M (Peak 107.73M) | Time:00:00.35 | Syncing Plane"], ["cmd", "filmcraft-cli --compact --save-as ~/films/tweakyourpc-promo/out/tweakyourpc.fcproj run ~/films/tweakyourpc-promo/work/logs/fc-01-create.jsonl"], ["out", "{\"id\":\"file.newProject\",\"line\":1,\"ok\":true,\"result\":null}"], ["out", "{\"id\":\"file.newSequence\",\"line\":2,\"ok\":true,\"result\":{\"sequence\":6}}"], ["cmd", "filmcraft-cli --compact --project ~/films/tweakyourpc-promo/out/tweakyourpc.fcproj --save run ~/films/tweakyourpc-promo/work/logs/fc-02-import.jsonl"], ["out", "{\"id\":\"file.import\",\"line\":1,\"ok\":true,\"result\":{\"errors\":[],\"items\":[7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,3\u2026"], ["cmd", "filmcraft-cli --compact --project ~/films/tweakyourpc-promo/out/tweakyourpc.fcproj --save run ~/films/tweakyourpc-promo/work/logs/fc-03-place.jsonl"], ["out", "{\"id\":\"timeline.place\",\"line\":1,\"ok\":true,\"result\":{\"clips\":[82]}}"], ["out", "{\"id\":\"timeline.place\",\"line\":2,\"ok\":true,\"result\":{\"clips\":[83]}}"], ["out", "{\"id\":\"timeline.place\",\"line\":3,\"ok\":true,\"result\":{\"clips\":[84]}}"], ["cmd", "filmcraft-cli --compact --project ~/films/tweakyourpc-promo/out/tweakyourpc.fcproj --save run ~/films/tweakyourpc-promo/work/logs/fc-04-motion-transi\u2026"], ["out", "{\"id\":\"sequence.applyVideoTransition\",\"line\":1,\"ok\":true,\"result\":{\"transition\":161}}"], ["out", "{\"id\":\"sequence.applyVideoTransition\",\"line\":2,\"ok\":true,\"result\":{\"transition\":162}}"], ["out", "{\"id\":\"effects.setParam\",\"line\":3,\"ok\":true,\"result\":{\"keyframes\":1}}"], ["cmd", "filmcraft-cli --project ~/films/tweakyourpc-promo/out/tweakyourpc.fcproj export ~/films/tweakyourpc-promo/out/tweakyourpc.rendering.mp4 --format h264\u2026"], ["out", "  \"job\": 1,"], ["out", "  \"offlineMedia\": [],"], ["out", "  \"path\": \"~/films/tweakyourpc-promo/out/tweakyourpc.rendering.mp4\","]];
+const log = document.getElementById('log');
+const cursor = Object.assign(document.createElement('span'), {className: 'cursor'});
+const total = 25000, perChar = 6;
+const budget = LINES.reduce((n, [kind, text]) => n + (kind === 'cmd' ? text.length * perChar : 0) + 120, 0);
+const scale = total / budget;  // stretch or squeeze the replay to fill the shot
+let i = 0;
+function next() {
+  if (i >= LINES.length) { log.appendChild(cursor); return; }
+  const [kind, text] = LINES[i++];
+  const row = Object.assign(document.createElement('div'), {className: kind});
+  log.appendChild(row);
+  while (log.children.length > 34) log.firstChild.remove();
+  if (kind === 'out') { row.textContent = text; return setTimeout(next, 120 * scale); }
+  let n = 0;
+  (function type() {
+    row.textContent = text.slice(0, ++n);
+    row.appendChild(cursor);
+    if (n < text.length) setTimeout(type, perChar * scale); else setTimeout(next, 260 * scale);
+  })();
+}
+setTimeout(next, 400);
+</script></body></html>

@@ -1,0 +1,494 @@
+{
+  "title": "tweakyourpc",
+  "kind": "showreel",
+  "format": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  },
+  "style": {
+    "design": "terminal",
+    "accent": "#8cabe8",
+    "background": "#0b1714",
+    "titles": "typewriter",
+    "transitions": "cinematic",
+    "pushIn": 4,
+    "showcase3d": true,
+    "quality": "final",
+    "titleHold": 7.0
+  },
+  "timing": "content",
+  "voice": {
+    "source": "tts",
+    "engine": "kokoro",
+    "voice": "af_heart",
+    "speed": 1.0,
+    "say": {
+      "github.com/tweakyourpc": "github dot com slash tweak your P C",
+      "tweakyourpc": "tweak your P C",
+      "TextStrata": "Text Strata",
+      "Portbroker": "Port broker",
+      "portbroker": "port broker",
+      "SQLite": "S Q Lite",
+      "OpenStreetMap": "Open Street Map",
+      "Wordwright": "Word-wright",
+      "GIF": "gif",
+      "ArtCraft": "Art Craft",
+      "EffectCraft": "Effect Craft",
+      "FilmCraft": "Film Craft",
+      "MCP": "M C P",
+      "works in IT": "works in I T"
+    }
+  },
+  "music": {
+    "source": "procedural",
+    "mood": "drive",
+    "volumeDb": -12
+  },
+  "captions": {
+    "mode": "none"
+  },
+  "credits": {
+    "enabled": true,
+    "title": "tweakyourpc",
+    "secondsPerLine": 0.75,
+    "lines": [
+      [
+        "Made by"
+      ],
+      [
+        "Directed by",
+        "Christopher Davis"
+      ],
+      [
+        "Made with"
+      ],
+      [
+        "3D screens",
+        "Blender 4.0"
+      ],
+      [
+        "Titles",
+        "EffectCraft (ArtCraft)"
+      ],
+      [
+        "Edit and mix",
+        "FilmCraft (ArtCraft)"
+      ],
+      [
+        "Voice",
+        "Kokoro-82M, voice af_heart"
+      ],
+      [
+        "Music",
+        "Synthesized with NumPy, SciPy"
+      ],
+      [
+        "App footage",
+        "Playwright and Chromium"
+      ],
+      [
+        "Encoding",
+        "FFmpeg and x264"
+      ],
+      [
+        "Knowledge",
+        "TextStrata"
+      ],
+      [
+        "AI collaborators"
+      ],
+      [
+        "Anthropic",
+        "Claude Opus 5.5, Claude Code"
+      ],
+      [
+        "OpenAI",
+        "GPT-6.1 Sol, GPT-6 Astra, Codex"
+      ],
+      [
+        "Special thanks"
+      ],
+      [
+        "",
+        "The Blender Foundation and community"
+      ],
+      [
+        "",
+        "The ArtCraft team"
+      ],
+      [
+        "",
+        "FFmpeg and x264 developers"
+      ],
+      [
+        "",
+        "hexgrad, for Kokoro and misaki"
+      ],
+      [
+        "",
+        "eSpeak NG, PyTorch, Hugging Face"
+      ],
+      [
+        "",
+        "spaCy, NumPy and SciPy"
+      ],
+      [
+        "",
+        "Playwright, Chromium and Node.js"
+      ],
+      [
+        "",
+        "Python and the Mesa 3D project"
+      ],
+      [
+        "",
+        "OpenStreetMap contributors"
+      ],
+      [
+        "",
+        "Wikipedia and Radio Browser"
+      ],
+      [
+        "",
+        "Google Noto fonts"
+      ],
+      [
+        "",
+        "Ubuntu and Canonical"
+      ],
+      [
+        "",
+        "Everyone who builds in the open"
+      ]
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hello",
+      "kind": "card",
+      "title": "Christopher Davis",
+      "tagline": "Understands the problem. Directs the machines. Ships the tool.",
+      "subtitle": "github.com/tweakyourpc",
+      "image": {
+        "file": "media/avatar.png"
+      },
+      "gap": 0.7,
+      "lines": [
+        "This is Christopher Davis.",
+        "He works in IT, and he isn't a programmer by trade. He builds software by understanding a problem deeply, then directing AI coding agents until the solution works.",
+        "He sets the goals and the limits, tests every result, and keeps it all running on his own hardware."
+      ]
+    },
+    {
+      "id": "intro",
+      "kind": "intro",
+      "title": "Six projects",
+      "tagline": "Built to run on your own terms.",
+      "titlePlace": "low",
+      "gap": 0.8,
+      "lines": [
+        "Here are six of his projects.",
+        "Games, knowledge, cities, words, time, and ports.",
+        "Each one built to run on your own terms."
+      ]
+    },
+    {
+      "id": "game-night",
+      "kind": "segment",
+      "title": "Game Night",
+      "tagline": "A Google Sheet becomes your game room",
+      "subtitle": "github.com/tweakyourpc/game-night",
+      "color": "#e8945a",
+      "hero": 0,
+      "shots": [
+        {
+          "file": "media/game-night-wordwright.mp4",
+          "in": 1.2,
+          "weight": 3,
+          "fit": "fit"
+        },
+        {
+          "file": "media/game-night-play.mp4",
+          "in": 9.3,
+          "weight": 1,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "Game Night turns a Google Sheet into your own personal game server, for free.",
+        "Its star is Wordwright, a crossword tile game in the spirit of Scrabble. Every word is checked against a real dictionary, and there's a computer opponent when friends are offline.",
+        "Four in a Row, Checkers, and more play across devices, and every table and replay stays in your own Google Drive."
+      ]
+    },
+    {
+      "id": "textstrata",
+      "kind": "segment",
+      "title": "TextStrata",
+      "tagline": "Local-first knowledge infrastructure",
+      "subtitle": "github.com/tweakyourpc/textstrata",
+      "color": "#46d9b0",
+      "hero": 1,
+      "shots": [
+        {
+          "file": "media/textstrata-hero.png",
+          "in": 0,
+          "weight": 1,
+          "fit": "fit"
+        },
+        {
+          "file": "media/textstrata-tour.mp4",
+          "in": 0,
+          "weight": 3,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "TextStrata is a local-first knowledge workspace, with plain Markdown as its storage format.",
+        "Every note is classified, tagged, and cross-linked deterministically, with no AI, and every link names the signal that made it.",
+        "Originals are never rewritten, and search runs on a local SQLite index."
+      ]
+    },
+    {
+      "id": "vertex-city",
+      "kind": "segment",
+      "title": "Vertex City",
+      "tagline": "A real city, drawn as light",
+      "subtitle": "github.com/tweakyourpc/vertex-city",
+      "color": "#3fd6e0",
+      "hero": 0,
+      "shots": [
+        {
+          "file": "media/vertex-city-live.mp4",
+          "in": 0.3,
+          "weight": 2,
+          "fit": "fit"
+        },
+        {
+          "file": "media/vertex-city-stars.mp4",
+          "in": 0.3,
+          "weight": 1.4,
+          "fit": "fit"
+        },
+        {
+          "file": "media/vertex-city-flight.mp4",
+          "in": 4.2,
+          "weight": 1,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "Vertex City draws real places from OpenStreetMap, under an astronomically correct sky.",
+        "Click a building to see what the map knows about it, with its Wikipedia summary when there is one, and tune in to radio stations broadcasting nearby.",
+        "Speed up time to watch the sun go down and the windows light up, then click a star to learn its name.",
+        "With no connection at all, a procedural city is ready to explore."
+      ]
+    },
+    {
+      "id": "wordsmith",
+      "kind": "segment",
+      "title": "Wordsmith Studio",
+      "tagline": "Exact anagrams, set in motion",
+      "subtitle": "github.com/tweakyourpc/Wordsmith-Studio-2",
+      "color": "#ff5fae",
+      "hero": 0,
+      "shots": [
+        {
+          "capture": {
+            "url": "pages/wordsmith/index.html",
+            "scale": 1.25,
+            "offline": true,
+            "actions": [
+              "wait 0.8",
+              "type #sourceInput Astronomer",
+              "wait 0.4",
+              "type #compositionInput Moon starer",
+              "wait 1.2",
+              "click #animateThisBtn",
+              "wait 1.0",
+              "click text=1920×1080",
+              "wait 0.6",
+              "click text=Neon glow",
+              "wait 0.6",
+              "click #playPause",
+              "wait 6.5"
+            ]
+          },
+          "in": 1.8,
+          "weight": 3,
+          "fit": "fit"
+        },
+        {
+          "file": "media/wordsmith-hero.png",
+          "in": 0,
+          "weight": 1,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "Wordsmith Studio finds exact anagrams, then turns them into kinetic typography.",
+        "Astronomer becomes moon starer, letter for letter.",
+        "Export a GIF or a video right in your browser. Nothing is uploaded."
+      ]
+    },
+    {
+      "id": "temporal-lens",
+      "kind": "segment",
+      "title": "Temporal Lens",
+      "tagline": "What \"next Friday\" really meant",
+      "subtitle": "github.com/tweakyourpc/temporal-lens",
+      "color": "#8b5cf6",
+      "hero": 0,
+      "shots": [
+        {
+          "file": "media/temporal-lens-live.mp4",
+          "in": 0,
+          "weight": 3,
+          "fit": "fit"
+        },
+        {
+          "file": "media/temporal-lens-hero.png",
+          "in": 0,
+          "weight": 1,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "Temporal Lens is a browser extension for the threads you read later.",
+        "It finds phrases like next Friday or in three days, and shows what they meant when the message was posted.",
+        "It is fully local and deterministic: no AI, no accounts, and no network calls."
+      ]
+    },
+    {
+      "id": "portbroker",
+      "kind": "segment",
+      "title": "portbroker",
+      "tagline": "Named ports. Zero collisions.",
+      "subtitle": "github.com/tweakyourpc/portbroker",
+      "color": "#f5a524",
+      "hero": 1,
+      "shots": [
+        {
+          "file": "media/portbroker-hero.png",
+          "in": 0,
+          "weight": 1,
+          "fit": "fit"
+        },
+        {
+          "capture": {
+            "url": "pages/portbroker/index.html",
+            "scale": 1.25,
+            "offline": true,
+            "actions": [
+              "wait 1.6",
+              "scroll 640 3.2",
+              "wait 0.8",
+              "click #insightModeBtn",
+              "wait 0.6",
+              "scroll -640 0.01",
+              "wait 1.2",
+              "scroll 720 3.2",
+              "wait 1.2"
+            ]
+          },
+          "in": 0,
+          "weight": 3,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "Portbroker gives every local service a stable, named port before anything binds.",
+        "So when an AI coding agent starts its own server, it can't take the port your work depends on.",
+        "One dashboard shows what is reserved, what is listening, and where it lives."
+      ]
+    },
+    {
+      "id": "made-here",
+      "kind": "segment",
+      "title": "Made on this PC",
+      "tagline": "Blender and ArtCraft, directed by AI agents",
+      "subtitle": "blender.org · getartcraft.com",
+      "color": "#8cabe8",
+      "hero": 0,
+      "shots": [
+        {
+          "file": "media/blender-ui.mp4",
+          "in": 0,
+          "weight": 2,
+          "fit": "fit"
+        },
+        {
+          "file": "media/effectcraft-ui.mp4",
+          "in": 0,
+          "weight": 1,
+          "fit": "fit"
+        },
+        {
+          "file": "media/filmcraft-ui.mp4",
+          "in": 0,
+          "weight": 2,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "This film was made the same way: on one small PC, offline, with open-source tools.",
+        "Blender built and lit the glowing, floating screens. ArtCraft's EffectCraft animated every title.",
+        "And FilmCraft assembled the cut on a real timeline, so any part of it can still be opened and edited by hand."
+      ],
+      "showcase": false
+    },
+    {
+      "id": "why-local",
+      "kind": "segment",
+      "title": "Why it works",
+      "tagline": "Local knowledge. Open tools.",
+      "subtitle": "github.com/tweakyourpc/textstrata",
+      "color": "#46d9b0",
+      "hero": 0,
+      "shots": [
+        {
+          "capture": {
+            "url": "pages/agent-terminal/index.html",
+            "scale": 1,
+            "offline": true,
+            "actions": [
+              "wait 27"
+            ]
+          },
+          "in": 0.5,
+          "weight": 3,
+          "fit": "fit"
+        },
+        {
+          "file": "media/textstrata-tour.mp4",
+          "in": 6,
+          "weight": 1,
+          "fit": "fit"
+        }
+      ],
+      "lines": [
+        "AI coding agents in the terminal wrote and ran every step, driving each app through MCP and command-line tools.",
+        "The ArtCraft apps are open source, so an agent can script every one of them end to end, and chain them together in ways closed tools like Adobe's don't open up.",
+        "TextStrata already holds local knowledge of this whole environment, and the agents can read the source code. So the film came together in a single evening, with minimal direction.",
+        "An online video AI service could get close, but only after being fed all of that context. Here, it was already at home."
+      ],
+      "showcase": false
+    },
+    {
+      "id": "credits",
+      "kind": "credits"
+    },
+    {
+      "id": "outro",
+      "kind": "outro",
+      "title": "github.com/tweakyourpc",
+      "tagline": "Come see what's next.",
+      "lines": [
+        "Find all six projects, and whatever he builds next, at github.com/tweakyourpc."
+      ],
+      "image": {
+        "file": "media/avatar.png"
+      }
+    }
+  ]
+}

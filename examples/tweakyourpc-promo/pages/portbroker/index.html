@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>portbroker-dashboard</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg-elevated: #111a2e;
+  --panel: rgba(17, 26, 46, 0.88);
+  --panel-strong: #16213a;
+  --text: #e8eefc;
+  --muted: #9eacc9;
+  --line: rgba(158, 172, 201, 0.18);
+  --line-strong: rgba(158, 172, 201, 0.28);
+  --accent: #67e8f9;
+  --accent-strong: #22d3ee;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+  --shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  --chip-bg: rgba(103, 232, 249, 0.12);
+  --chip-text: #baf6ff;
+  --focus: 0 0 0 3px rgba(103, 232, 249, 0.25);
+  font-family: Inter, "Segoe UI Variable", "IBM Plex Sans", sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #eef4fb;
+  --bg-elevated: #f8fbff;
+  --panel: rgba(255, 255, 255, 0.92);
+  --panel-strong: #ffffff;
+  --text: #122033;
+  --muted: #5d6c84;
+  --line: rgba(18, 32, 51, 0.12);
+  --line-strong: rgba(18, 32, 51, 0.18);
+  --accent: #0f766e;
+  --accent-strong: #0b5f59;
+  --success: #047857;
+  --warning: #b45309;
+  --danger: #be123c;
+  --shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+  --chip-bg: rgba(15, 118, 110, 0.1);
+  --chip-text: #0f766e;
+  --focus: 0 0 0 3px rgba(15, 118, 110, 0.18);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 34%),
+    radial-gradient(circle at left top, rgba(52, 211, 153, 0.08), transparent 28%),
+    linear-gradient(180deg, var(--bg), var(--bg-elevated));
+  color: var(--text);
+}
+button, select, a { transition: 140ms ease; }
+button, select { font: inherit; }
+a { color: inherit; }
+.shell { max-width: 1320px; margin: 0 auto; padding: 28px 18px 44px; }
+.hero { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.hero-copy { max-width: 760px; }
+.eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.02; }
+.lede { margin: 12px 0 0; color: var(--muted); max-width: 56rem; line-height: 1.55; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.control, .toggle-group, .filters {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.toggle-group { display: inline-flex; padding: 6px; gap: 6px; }
+.toggle-group button, .theme-toggle {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+.toggle-group button.active, .theme-toggle.active {
+  background: var(--chip-bg);
+  color: var(--accent-strong);
+}
+.toggle-group button:focus-visible, .theme-toggle:focus-visible, select:focus-visible, details summary:focus-visible { outline: none; box-shadow: var(--focus); }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px; margin-bottom: 18px; }
+.filter-field { display: grid; gap: 6px; min-width: 180px; }
+.filter-field label { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+select {
+  appearance: none;
+  background: var(--panel-strong);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-height: 42px;
+}
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.stat-card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: var(--shadow); }
+.stat-card span { display: block; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.stat-card strong { display: block; margin-top: 10px; font-size: 1.8rem; }
+.status-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 12px 0 18px; color: var(--muted); font-size: 0.95rem; }
+.warning { padding: 12px 14px; border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 14px; background: rgba(251, 191, 36, 0.08); color: var(--warning); margin-bottom: 18px; }
+.groups { display: grid; gap: 16px; }
+details.group { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
+details.group[open] { border-color: var(--line-strong); }
+details.group summary { list-style: none; cursor: pointer; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+details.group summary::-webkit-details-marker { display: none; }
+.group-heading { display: grid; gap: 6px; }
+.group-heading h2 { margin: 0; font-size: 1.08rem; }
+.group-sub { color: var(--muted); font-size: 0.94rem; }
+.count-badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; background: var(--chip-bg); color: var(--chip-text); }
+.items { display: grid; gap: 12px; padding: 0 16px 16px; }
+.service-card { background: var(--panel-strong); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.service-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.service-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.service-name { margin: 0; font-size: 1.02rem; }
+.service-link { color: var(--accent); font-weight: 800; text-decoration: none; }
+.service-link:hover { text-decoration: underline; }
+.service-meta-line, .service-detail-grid, .service-notes { margin-top: 12px; }
+.service-meta-line { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.pill.active { background: rgba(52, 211, 153, 0.14); color: var(--success); }
+.pill.reserved { background: rgba(251, 191, 36, 0.14); color: var(--warning); }
+.pill.retired { background: rgba(251, 113, 133, 0.14); color: var(--danger); }
+.pill.unknown { background: rgba(158, 172, 201, 0.14); color: var(--muted); }
+.pill.neutral { background: var(--chip-bg); color: var(--chip-text); }
+.service-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.detail { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.02); }
+.detail.wide { grid-column: 1 / -1; }
+:root[data-theme='light'] .detail { background: rgba(15, 118, 110, 0.03); }
+.detail span { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.detail strong, .detail code { font-size: 0.95rem; color: var(--text); }
+.detail code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-word; }
+.detail-value-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.detail-value-row code { flex: 1; min-width: 0; }
+.copy-btn {
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.copy-btn:focus-visible { outline: none; box-shadow: var(--focus); }
+.kill-btn {
+  border: 1px solid rgba(251, 113, 133, 0.35);
+  border-radius: 10px;
+  padding: 6px 12px;
+  background: rgba(251, 113, 133, 0.08);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.kill-btn:hover { background: rgba(251, 113, 133, 0.18); }
+.kill-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.kill-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--warning);
+  font-size: 13px;
+}
+.kill-confirm button {
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+.kill-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  z-index: 999;
+  transition: opacity 0.3s ease;
+}
+.kill-toast.success { background: rgba(52, 211, 153, 0.2); border: 1px solid rgba(52, 211, 153, 0.4); color: var(--success); }
+.kill-toast.error { background: rgba(251, 113, 133, 0.2); border: 1px solid rgba(251, 113, 133, 0.4); color: var(--danger); }
+.empty { padding: 18px; border: 1px dashed var(--line-strong); border-radius: 16px; color: var(--muted); text-align: center; }
+.footer { margin-top: 20px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 0.92rem; }
+.hidden { display: none !important; }
+@media (max-width: 720px) {
+  .shell { padding: 18px 12px 28px; }
+  .hero { margin-bottom: 18px; }
+  details.group summary { padding: 16px; }
+  .items { padding: 0 12px 12px; }
+  .service-card { padding: 14px; }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Port Broker</p>
+      <h1>portbroker-dashboard</h1>
+      <p class="lede">A unified service map with two lenses: a fast operational list for quick scanning and an insight view for richer context, grouping, and lifecycle meaning.</p>
+    </div>
+    <div class="hero-actions">
+      <div class="toggle-group" role="tablist" aria-label="View mode">
+        <button id="simpleModeBtn" type="button" class="active" aria-pressed="true">Simple view</button>
+        <button id="insightModeBtn" type="button" aria-pressed="false">Insight view</button>
+      </div>
+      <div class="control toggle-group" aria-label="Theme toggle">
+        <button id="themeToggle" type="button" class="theme-toggle active" aria-pressed="true">Dark mode</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats">
+    <article class="stat-card"><span>Total services</span><strong id="totalCount">-</strong></article>
+    <article class="stat-card"><span>Active</span><strong id="activeCount">-</strong></article>
+    <article class="stat-card"><span>Reserved or retired</span><strong id="reservedCount">-</strong></article>
+    <article class="stat-card"><span>Persistent</span><strong id="persistentCount">-</strong></article>
+  </section>
+
+  <section class="filters" aria-label="Filters">
+    <div class="filter-field">
+      <label for="groupFilter">Group</label>
+      <select id="groupFilter">
+        <option value="all">All groups</option>
+      </select>
+    </div>
+    <div class="filter-field">
+      <label for="lifecycleFilter">Lifecycle</label>
+      <select id="lifecycleFilter">
+        <option value="all">All lifecycle states</option>
+        <option value="active">Active</option>
+        <option value="reserved">Reserved</option>
+        <option value="retired">Retired</option>
+      </select>
+    </div>
+    <div class="filter-field insight-only">
+      <label for="audienceFilter">Audience</label>
+      <select id="audienceFilter">
+        <option value="all">All audiences</option>
+        <option value="operator">Operator</option>
+        <option value="user">User</option>
+        <option value="internal">Internal</option>
+      </select>
+    </div>
+    <div class="filter-field insight-only">
+      <label for="tierFilter">Priority tier</label>
+      <select id="tierFilter">
+        <option value="all">All tiers</option>
+        <option value="core">Core</option>
+        <option value="important">Important</option>
+        <option value="experimental">Experimental</option>
+        <option value="archive">Archive</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="status-row">
+    <div id="checkedAt">Waiting for first refresh...</div>
+    <div id="resultsSummary">Loading services...</div>
+  </div>
+
+  <div class="warning hidden" id="warning"></div>
+  <section class="groups" id="groups">
+    <div class="empty">Loading...</div>
+  </section>
+
+  <footer class="footer">
+    <span id="appVersion">v-</span>
+    <span><code>/api/ports</code></span>
+    <span><code>/whoami</code></span>
+  </footer>
+</main>
+
+<div id="killToast" class="kill-toast hidden"></div>
+
+<script>
+// Showrig promo harness: the real portbroker dashboard, fed a saved /api/ports snapshot so it renders offline.
+// The snapshot came from portbroker itself (a throwaway registry with sample services); only paths were tidied.
+const PORTBROKER_SNAPSHOT = {
+ "checkedAt": "2026-10-25T05:34:14Z",
+ "groups": [
+  {
+   "defaultExpanded": true,
+   "items": [
+    {
+     "active": true,
+     "cmd": "showrig web",
+     "createdAt": "2026-10-25T05:33:32Z",
+     "cwd": "~/Projects/showrig",
+     "host": "0.0.0.0",
+     "lastSeenPid": 822899,
+     "listenerCount": 1,
+     "listeners": [
+      "python3(pid=822899)"
+     ],
+     "meta": {
+      "audience": "lan",
+      "group": "creative",
+      "lifecycle": "persistent",
+      "tier": "core"
+     },
+     "name": "showrig-studio",
+     "persistent": true,
+     "port": 8700,
+     "proto": "tcp",
+     "status": "active",
+     "updatedAt": "2026-10-25T05:33:32Z"
+    },
+    {
+     "active": true,
+     "cmd": "node dev-server.mjs",
+     "createdAt": "2026-10-25T05:33:32Z",
+     "cwd": "~/Projects/vertex-city",
+     "host": "0.0.0.0",
+     "lastSeenPid": 822928,
+     "listenerCount": 1,
+     "listeners": [
+      "node(pid=822928)"
+     ],
+     "meta": {
+      "audience": "lan",
+      "group": "creative",
+      "lifecycle": "dev",
+      "tier": "showcase"
+     },
+     "name": "vertex-city",
+     "persistent": true,
+     "port": 8703,
+     "proto": "tcp",
+     "status": "active",
+     "updatedAt": "2026-10-25T05:33:32Z"
+    },
+    {
+     "active": false,
+     "cmd": "python3 -m http.server",
+     "createdAt": "2026-10-25T05:33:33Z",
+     "cwd": "~/Projects/Wordsmith-Studio-2",
+     "host": "0.0.0.0",
+     "lastSeenPid": null,
+     "listenerCount": 0,
+     "listeners": [],
+     "meta": {
+      "audience": "lan",
+      "group": "creative",
+      "lifecycle": "dev",
+      "tier": "showcase"
+     },
+     "name": "wordsmith-studio-2",
+     "persistent": true,
+     "port": 8711,
+     "proto": "tcp",
+     "status": "reserved",
+     "updatedAt": "2026-10-25T05:33:33Z"
+    }
+   ],
+   "key": "creative",
+   "label": "Creative"
+  },
+  {
+   "defaultExpanded": true,
+   "items": [
+    {
+     "active": false,
+     "cmd": "node preview/dev/server.js",
+     "createdAt": "2026-10-25T05:33:33Z",
+     "cwd": "~/Projects/temporal-lens",
+     "host": "0.0.0.0",
+     "lastSeenPid": null,
+     "listenerCount": 0,
+     "listeners": [],
+     "meta": {
+      "audience": "local",
+      "group": "extensions",
+      "lifecycle": "dev",
+      "tier": "tools"
+     },
+     "name": "temporal-lens-preview",
+     "persistent": true,
+     "port": 8709,
+     "proto": "tcp",
+     "status": "reserved",
+     "updatedAt": "2026-10-25T05:33:33Z"
+    }
+   ],
+   "key": "extensions",
+   "label": "Extensions"
+  },
+  {
+   "defaultExpanded": true,
+   "items": [
+    {
+     "active": true,
+     "cmd": "node tools/dev_server.js",
+     "createdAt": "2026-10-25T05:33:32Z",
+     "cwd": "~/Projects/game-night",
+     "host": "0.0.0.0",
+     "lastSeenPid": 822919,
+     "listenerCount": 1,
+     "listeners": [
+      "node(pid=822919)"
+     ],
+     "meta": {
+      "audience": "local",
+      "group": "games",
+      "lifecycle": "dev",
+      "tier": "tools"
+     },
+     "name": "game-night-dev",
+     "persistent": true,
+     "port": 8702,
+     "proto": "tcp",
+     "status": "active",
+     "updatedAt": "2026-10-25T05:33:32Z"
+    }
+   ],
+   "key": "games",
+   "label": "Games"
+  },
+  {
+   "defaultExpanded": true,
+   "items": [
+    {
+     "active": false,
+     "cmd": "uvicorn markbase.app:app",
+     "createdAt": "2026-10-25T05:33:33Z",
+     "cwd": "~/Projects/markbase",
+     "host": "0.0.0.0",
+     "lastSeenPid": null,
+     "listenerCount": 0,
+     "listeners": [],
+     "meta": {
+      "audience": "lan",
+      "group": "knowledge",
+      "lifecycle": "persistent",
+      "tier": "core"
+     },
+     "name": "markbase",
+     "persistent": true,
+     "port": 8713,
+     "proto": "tcp",
+     "status": "reserved",
+     "updatedAt": "2026-10-25T05:33:33Z"
+    },
+    {
+     "active": true,
+     "cmd": "python -m textstrata web",
+     "createdAt": "2026-10-25T05:33:33Z",
+     "cwd": "~/Projects/textstrata",
+     "host": "0.0.0.0",
+     "lastSeenPid": 822936,
+     "listenerCount": 1,
+     "listeners": [
+      "python3(pid=822936)"
+     ],
+     "meta": {
+      "audience": "lan",
+      "group": "knowledge",
+      "lifecycle": "persistent",
+      "tier": "core"
+     },
+     "name": "textstrata",
+     "persistent": true,
+     "port": 8706,
+     "proto": "tcp",
+     "status": "active",
+     "updatedAt": "2026-10-25T05:33:33Z"
+    }
+   ],
+   "key": "knowledge",
+   "label": "Knowledge"
+  },
+  {
+   "defaultExpanded": true,
+   "items": [
+    {
+     "active": true,
+     "cmd": "portbroker web --name portbroker-dashboard --port 8748",
+     "createdAt": "2026-10-25T05:33:43Z",
+     "cwd": "~/Projects/portbroker",
+     "host": "0.0.0.0",
+     "lastSeenPid": 822461,
+     "listenerCount": 1,
+     "listeners": [
+      "python3(pid=822461)"
+     ],
+     "meta": {},
+     "name": "portbroker-dashboard",
+     "persistent": false,
+     "port": 8748,
+     "proto": "tcp",
+     "status": "active",
+     "updatedAt": "2026-10-25T05:33:43Z"
+    }
+   ],
+   "key": "ungrouped",
+   "label": "Ungrouped"
+  }
+ ],
+ "issues": [],
+ "listenerError": null,
+ "ports": [
+  {
+   "active": true,
+   "cmd": "node tools/dev_server.js",
+   "createdAt": "2026-10-25T05:33:32Z",
+   "cwd": "~/Projects/game-night",
+   "host": "0.0.0.0",
+   "lastSeenPid": 822919,
+   "listenerCount": 1,
+   "listeners": [
+    "node(pid=822919)"
+   ],
+   "meta": {
+    "audience": "local",
+    "group": "games",
+    "lifecycle": "dev",
+    "tier": "tools"
+   },
+   "name": "game-night-dev",
+   "persistent": true,
+   "port": 8702,
+   "proto": "tcp",
+   "status": "active",
+   "updatedAt": "2026-10-25T05:33:32Z"
+  },
+  {
+   "active": false,
+   "cmd": "uvicorn markbase.app:app",
+   "createdAt": "2026-10-25T05:33:33Z",
+   "cwd": "~/Projects/markbase",
+   "host": "0.0.0.0",
+   "lastSeenPid": null,
+   "listenerCount": 0,
+   "listeners": [],
+   "meta": {
+    "audience": "lan",
+    "group": "knowledge",
+    "lifecycle": "persistent",
+    "tier": "core"
+   },
+   "name": "markbase",
+   "persistent": true,
+   "port": 8713,
+   "proto": "tcp",
+   "status": "reserved",
+   "updatedAt": "2026-10-25T05:33:33Z"
+  },
+  {
+   "active": true,
+   "cmd": "portbroker web --name portbroker-dashboard --port 8748",
+   "createdAt": "2026-10-25T05:33:43Z",
+   "cwd": "~/Projects/portbroker",
+   "host": "0.0.0.0",
+   "lastSeenPid": 822461,
+   "listenerCount": 1,
+   "listeners": [
+    "python3(pid=822461)"
+   ],
+   "meta": {},
+   "name": "portbroker-dashboard",
+   "persistent": false,
+   "port": 8748,
+   "proto": "tcp",
+   "status": "active",
+   "updatedAt": "2026-10-25T05:33:43Z"
+  },
+  {
+   "active": true,
+   "cmd": "showrig web",
+   "createdAt": "2026-10-25T05:33:32Z",
+   "cwd": "~/Projects/showrig",
+   "host": "0.0.0.0",
+   "lastSeenPid": 822899,
+   "listenerCount": 1,
+   "listeners": [
+    "python3(pid=822899)"
+   ],
+   "meta": {
+    "audience": "lan",
+    "group": "creative",
+    "lifecycle": "persistent",
+    "tier": "core"
+   },
+   "name": "showrig-studio",
+   "persistent": true,
+   "port": 8700,
+   "proto": "tcp",
+   "status": "active",
+   "updatedAt": "2026-10-25T05:33:32Z"
+  },
+  {
+   "active": false,
+   "cmd": "node preview/dev/server.js",
+   "createdAt": "2026-10-25T05:33:33Z",
+   "cwd": "~/Projects/temporal-lens",
+   "host": "0.0.0.0",
+   "lastSeenPid": null,
+   "listenerCount": 0,
+   "listeners": [],
+   "meta": {
+    "audience": "local",
+    "group": "extensions",
+    "lifecycle": "dev",
+    "tier": "tools"
+   },
+   "name": "temporal-lens-preview",
+   "persistent": true,
+   "port": 8709,
+   "proto": "tcp",
+   "status": "reserved",
+   "updatedAt": "2026-10-25T05:33:33Z"
+  },
+  {
+   "active": true,
+   "cmd": "python -m textstrata web",
+   "createdAt": "2026-10-25T05:33:33Z",
+   "cwd": "~/Projects/textstrata",
+   "host": "0.0.0.0",
+   "lastSeenPid": 822936,
+   "listenerCount": 1,
+   "listeners": [
+    "python3(pid=822936)"
+   ],
+   "meta": {
+    "audience": "lan",
+    "group": "knowledge",
+    "lifecycle": "persistent",
+    "tier": "core"
+   },
+   "name": "textstrata",
+   "persistent": true,
+   "port": 8706,
+   "proto": "tcp",
+   "status": "active",
+   "updatedAt": "2026-10-25T05:33:33Z"
+  },
+  {
+   "active": true,
+   "cmd": "node dev-server.mjs",
+   "createdAt": "2026-10-25T05:33:32Z",
+   "cwd": "~/Projects/vertex-city",
+   "host": "0.0.0.0",
+   "lastSeenPid": 822928,
+   "listenerCount": 1,
+   "listeners": [
+    "node(pid=822928)"
+   ],
+   "meta": {
+    "audience": "lan",
+    "group": "creative",
+    "lifecycle": "dev",
+    "tier": "showcase"
+   },
+   "name": "vertex-city",
+   "persistent": true,
+   "port": 8703,
+   "proto": "tcp",
+   "status": "active",
+   "updatedAt": "2026-10-25T05:33:32Z"
+  },
+  {
+   "active": false,
+   "cmd": "python3 -m http.server",
+   "createdAt": "2026-10-25T05:33:33Z",
+   "cwd": "~/Projects/Wordsmith-Studio-2",
+   "host": "0.0.0.0",
+   "lastSeenPid": null,
+   "listenerCount": 0,
+   "listeners": [],
+   "meta": {
+    "audience": "lan",
+    "group": "creative",
+    "lifecycle": "dev",
+    "tier": "showcase"
+   },
+   "name": "wordsmith-studio-2",
+   "persistent": true,
+   "port": 8711,
+   "proto": "tcp",
+   "status": "reserved",
+   "updatedAt": "2026-10-25T05:33:33Z"
+  }
+ ],
+ "registryPath": "~/.local/share/portbroker/registry.json",
+ "service": "portbroker-dashboard",
+ "summary": {
+  "active": 5,
+  "persistent": 7,
+  "reserved": 3,
+  "retired": 0,
+  "total": 8,
+  "unknown": 0
+ },
+ "version": "1.3.0"
+};
+const realFetch = window.fetch.bind(window);
+window.fetch = async (url, options) => {
+  if (String(url).startsWith('/api/ports')) {
+    const snapshot = structuredClone(PORTBROKER_SNAPSHOT);
+    snapshot.checkedAt = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    return new Response(JSON.stringify(snapshot), {status: 200, headers: {'content-type': 'application/json'}});
+  }
+  return realFetch(url, options);
+};
+</script>
+<script>
+const refreshMs = 5000;
+// Resolves to the browser's own hostname when the server binds to 0.0.0.0.
+// Override with PORTBROKER_FALLBACK_HOST env var at server startup if needed.
+const fallbackLanHost = '127.0.0.1';
+const groupsNode = document.getElementById('groups');
+const warningNode = document.getElementById('warning');
+const checkedAtNode = document.getElementById('checkedAt');
+const resultsSummaryNode = document.getElementById('resultsSummary');
+const rootNode = document.documentElement;
+const killToast = document.getElementById('killToast');
+
+const state = {
+  mode: 'simple',
+  theme: 'dark',
+  snapshot: null,
+  pendingKill: null,
+  filters: {
+    group: 'all',
+    lifecycle: 'all',
+    audience: 'all',
+    tier: 'all',
+  },
+};
+
+const simpleModeBtn = document.getElementById('simpleModeBtn');
+const insightModeBtn = document.getElementById('insightModeBtn');
+const themeToggle = document.getElementById('themeToggle');
+const groupFilter = document.getElementById('groupFilter');
+const lifecycleFilter = document.getElementById('lifecycleFilter');
+const audienceFilter = document.getElementById('audienceFilter');
+const tierFilter = document.getElementById('tierFilter');
+
+function setText(id, value) {
+  document.getElementById(id).textContent = String(value);
+}
+
+function titleCase(value) {
+  return String(value || '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, ch => ch.toUpperCase());
+}
+
+function isWildcardOrLoopback(host) {
+  const value = String(host || '').trim().toLowerCase();
+  return !value || ['0.0.0.0','::','*','localhost','127.0.0.1','::1'].includes(value);
+}
+
+function normalizedHost(host) {
+  const browserHost = String(window.location.hostname || '').trim();
+  if (isWildcardOrLoopback(host)) {
+    return browserHost || fallbackLanHost;
+  }
+  return String(host || '').trim();
+}
+
+function httpUrl(host, port) {
+  const formattedHost = host.includes(':') && !host.startsWith('[') && !host.endsWith(']') ? `[${host}]` : host;
+  return `http://${formattedHost}:${port}`;
+}
+
+function statusLabel(status) {
+  if (status === 'active') return 'Active';
+  if (status === 'reserved') return 'Reserved';
+  if (status === 'retired') return 'Retired';
+  return 'Unknown';
+}
+
+function showToast(message, type) {
+  killToast.textContent = message;
+  killToast.className = `kill-toast ${type}`;
+  killToast.classList.remove('hidden');
+  setTimeout(() => killToast.classList.add('hidden'), 3000);
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+async function copyText(value, label) {
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(value);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      textarea.remove();
+      if (!copied) throw new Error('clipboard API is unavailable');
+    }
+    showToast(`Copied ${label}`, 'success');
+  } catch (error) {
+    showToast(`Copy failed: ${error.message}`, 'error');
+  }
+}
+
+async function killPid(pid, name, btn) {
+  btn.disabled = true;
+  try {
+    const response = await fetch(`/api/kill/${pid}`, { method: 'POST', cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.message || `HTTP ${response.status}`);
+    showToast(`Killed ${name} (pid ${pid})`, 'success');
+    setTimeout(refresh, 800);
+  } catch (error) {
+    showToast(`Failed to kill ${name}: ${error.message}`, 'error');
+    btn.disabled = false;
+  }
+}
+
+function activeViewMode(mode) {
+  state.mode = mode;
+  const simple = mode === 'simple';
+  simpleModeBtn.classList.toggle('active', simple);
+  insightModeBtn.classList.toggle('active', !simple);
+  simpleModeBtn.setAttribute('aria-pressed', simple ? 'true' : 'false');
+  insightModeBtn.setAttribute('aria-pressed', simple ? 'false' : 'true');
+  document.querySelectorAll('.insight-only').forEach(node => {
+    node.classList.toggle('hidden', simple);
+  });
+  render();
+}
+
+function applyTheme(theme) {
+  state.theme = theme;
+  rootNode.setAttribute('data-theme', theme);
+  const dark = theme === 'dark';
+  themeToggle.classList.toggle('active', dark);
+  themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  themeToggle.textContent = dark ? 'Dark mode' : 'Light mode';
+}
+
+function passesFilters(item) {
+  const meta = item.meta || {};
+  if (state.filters.group !== 'all' && meta.group !== state.filters.group) return false;
+  if (state.filters.lifecycle !== 'all' && (meta.lifecycle || item.status) !== state.filters.lifecycle) return false;
+  if (state.mode === 'insight' && state.filters.audience !== 'all' && meta.audience !== state.filters.audience) return false;
+  if (state.mode === 'insight' && state.filters.tier !== 'all' && meta.tier !== state.filters.tier) return false;
+  return true;
+}
+
+function populateGroupFilter(snapshot) {
+  const prior = state.filters.group;
+  groupFilter.innerHTML = '<option value="all">All groups</option>';
+  for (const group of (snapshot.groups || [])) {
+    const option = document.createElement('option');
+    option.value = group.key;
+    option.textContent = group.label || titleCase(group.key);
+    groupFilter.appendChild(option);
+  }
+  if ([...groupFilter.options].some(option => option.value === prior)) {
+    groupFilter.value = prior;
+  } else {
+    state.filters.group = 'all';
+    groupFilter.value = 'all';
+  }
+}
+
+function detailCard(label, value, mono=false, options={}) {
+  const node = document.createElement('div');
+  node.className = options.wide ? 'detail wide' : 'detail';
+  const span = document.createElement('span');
+  span.textContent = label;
+  node.appendChild(span);
+  if (mono) {
+    const valueRow = document.createElement('div');
+    valueRow.className = 'detail-value-row';
+    const code = document.createElement('code');
+    code.textContent = value;
+    valueRow.appendChild(code);
+    if (options.copyText) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-btn';
+      button.textContent = options.copyLabel || 'Copy';
+      button.addEventListener('click', () => copyText(options.copyText, options.copyLabel || label));
+      valueRow.appendChild(button);
+    }
+    node.appendChild(valueRow);
+  } else {
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    node.appendChild(strong);
+  }
+  return node;
+}
+
+function renderServiceCard(item) {
+  const meta = item.meta || {};
+  const card = document.createElement('article');
+  card.className = 'service-card';
+
+  const top = document.createElement('div');
+  top.className = 'service-top';
+
+  const left = document.createElement('div');
+  const nameRow = document.createElement('div');
+  nameRow.className = 'service-name-row';
+
+  const heading = document.createElement('h3');
+  heading.className = 'service-name';
+  const port = Number(item.port);
+  const isTcp = String(item.proto || '').toLowerCase() === 'tcp';
+  if (isTcp && Number.isInteger(port) && port > 0 && port <= 65535) {
+    const link = document.createElement('a');
+    link.className = 'service-link';
+    link.href = httpUrl(normalizedHost(item.host), port);
+    link.textContent = item.name || `${normalizedHost(item.host)}:${port}`;
+    heading.appendChild(link);
+  } else {
+    heading.textContent = item.name || 'Unnamed service';
+  }
+  nameRow.appendChild(heading);
+
+  const status = document.createElement('span');
+  status.className = `pill ${item.status || 'unknown'}`;
+  status.textContent = statusLabel(item.status || 'unknown');
+  nameRow.appendChild(status);
+  left.appendChild(nameRow);
+
+  const metaLine = document.createElement('div');
+  metaLine.className = 'service-meta-line';
+  const hostPill = document.createElement('span');
+  hostPill.className = 'pill neutral';
+  hostPill.textContent = `${normalizedHost(item.host)}:${item.port}`;
+  metaLine.appendChild(hostPill);
+
+  if (state.mode === 'insight') {
+    for (const value of [meta.group && titleCase(meta.group), meta.tier && titleCase(meta.tier), meta.audience && titleCase(meta.audience)]) {
+      if (!value) continue;
+      const pill = document.createElement('span');
+      pill.className = 'pill neutral';
+      pill.textContent = value;
+      metaLine.appendChild(pill);
+    }
+  }
+  left.appendChild(metaLine);
+  top.appendChild(left);
+
+  const right = document.createElement('div');
+  right.className = 'service-meta-line';
+  const persistent = document.createElement('span');
+  persistent.className = 'pill neutral';
+  persistent.textContent = item.persistent ? 'Persistent' : 'Ephemeral';
+  right.appendChild(persistent);
+
+  // Kill button -- only shown when a listener PID is known
+  const pid = item.lastSeenPid;
+  if (item.status === 'active' && pid) {
+    const killBtn = document.createElement('button');
+    killBtn.className = 'kill-btn';
+    killBtn.textContent = 'Kill';
+    killBtn.title = `Terminate process ${pid}`;
+    let confirming = false;
+    killBtn.addEventListener('click', () => {
+      if (!confirming) {
+        confirming = true;
+        killBtn.textContent = 'Confirm?';
+        setTimeout(() => {
+          if (confirming) {
+            confirming = false;
+            killBtn.textContent = 'Kill';
+          }
+        }, 3000);
+      } else {
+        killPid(pid, item.name, killBtn);
+      }
+    });
+    right.appendChild(killBtn);
+  }
+
+  top.appendChild(right);
+  card.appendChild(top);
+
+  const grid = document.createElement('div');
+  grid.className = 'service-detail-grid';
+  grid.appendChild(detailCard('Port', String(item.port), true));
+  grid.appendChild(detailCard('Protocol', String(item.proto || '').toUpperCase() || '-', true));
+  grid.appendChild(detailCard('Listeners', Array.isArray(item.listeners) && item.listeners.length ? item.listeners.join(', ') : 'idle', true));
+  grid.appendChild(detailCard('Updated', item.updatedAt || item.createdAt || '-', true));
+  if (item.cwd) {
+    grid.appendChild(detailCard('Working directory', item.cwd, true, {
+      wide: true,
+      copyText: `cd ${shellQuote(item.cwd)}`,
+      copyLabel: 'Copy cd',
+    }));
+  } else {
+    grid.appendChild(detailCard('Working directory', '-', true, { wide: true }));
+  }
+  if (state.mode === 'insight') {
+    grid.appendChild(detailCard('Command', item.cmd || '-', true));
+  }
+  card.appendChild(grid);
+  return card;
+}
+
+function issueText(issue) {
+  const level = issue?.level ? String(issue.level).toUpperCase() : 'ISSUE';
+  const name = issue?.name ? String(issue.name) : '-';
+  const message = issue?.message ? String(issue.message) : 'Registry validation issue.';
+  return `[${level}] ${name}: ${message}`;
+}
+
+function render() {
+  const snapshot = state.snapshot;
+  if (!snapshot) return;
+
+  setText('totalCount', snapshot.summary?.total ?? 0);
+  setText('activeCount', snapshot.summary?.active ?? 0);
+  setText('reservedCount', (snapshot.summary?.reserved ?? 0) + (snapshot.summary?.retired ?? 0));
+  setText('persistentCount', snapshot.summary?.persistent ?? 0);
+  setText('appVersion', `v${snapshot.version || '-'}`);
+
+  const checkedAt = snapshot.checkedAt ? `Last checked ${snapshot.checkedAt}` : 'Waiting for first refresh...';
+  const registry = snapshot.registryPath ? ` -- Registry ${snapshot.registryPath}` : '';
+  checkedAtNode.textContent = `${checkedAt}${registry}`;
+
+  const warnings = [];
+  if (snapshot.listenerError) warnings.push(snapshot.listenerError);
+  for (const issue of (snapshot.issues || [])) warnings.push(issueText(issue));
+  warningNode.classList.toggle('hidden', warnings.length === 0);
+  warningNode.textContent = warnings.join('\n');
+
+  groupsNode.textContent = '';
+  let shownGroups = 0;
+  let shownItems = 0;
+
+  for (const group of (snapshot.groups || [])) {
+    const items = (group.items || []).filter(passesFilters);
+    if (!items.length) continue;
+    shownGroups += 1;
+    shownItems += items.length;
+
+    const details = document.createElement('details');
+    details.className = 'group';
+    details.open = group.defaultExpanded !== false || state.filters.group !== 'all';
+
+    const summary = document.createElement('summary');
+    const headingWrap = document.createElement('div');
+    headingWrap.className = 'group-heading';
+    const title = document.createElement('h2');
+    title.textContent = group.label || titleCase(group.key);
+    headingWrap.appendChild(title);
+    const sub = document.createElement('div');
+    sub.className = 'group-sub';
+    sub.textContent = state.mode === 'simple'
+      ? `${items.length} service${items.length === 1 ? '' : 's'}`
+      : `${items.length} service${items.length === 1 ? '' : 's'} in this operational group`;
+    headingWrap.appendChild(sub);
+    summary.appendChild(headingWrap);
+
+    const badges = document.createElement('div');
+    badges.className = 'count-badges';
+    const activeItems = items.filter(item => item.status === 'active').length;
+    const reservedItems = items.filter(item => item.status === 'reserved').length;
+    const retiredItems = items.filter(item => item.status === 'retired').length;
+    for (const text of [
+      `Active ${activeItems}`,
+      reservedItems ? `Reserved ${reservedItems}` : '',
+      retiredItems ? `Retired ${retiredItems}` : '',
+    ]) {
+      if (!text) continue;
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = text;
+      badges.appendChild(badge);
+    }
+    summary.appendChild(badges);
+    details.appendChild(summary);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'items';
+    for (const item of items) {
+      itemsWrap.appendChild(renderServiceCard(item));
+    }
+    details.appendChild(itemsWrap);
+    groupsNode.appendChild(details);
+  }
+
+  if (!shownGroups) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No services match the current filters.';
+    groupsNode.appendChild(empty);
+  }
+
+  resultsSummaryNode.textContent = `Showing ${shownItems} service${shownItems === 1 ? '' : 's'} across ${shownGroups} group${shownGroups === 1 ? '' : 's'}`;
+}
+
+async function refresh() {
+  try {
+    const response = await fetch('/api/ports', { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    state.snapshot = data;
+    populateGroupFilter(data);
+    render();
+  } catch (error) {
+    warningNode.classList.remove('hidden');
+    warningNode.textContent = `Refresh failed: ${error.message}`;
+  }
+}
+
+simpleModeBtn.addEventListener('click', () => activeViewMode('simple'));
+insightModeBtn.addEventListener('click', () => activeViewMode('insight'));
+themeToggle.addEventListener('click', () => applyTheme(state.theme === 'dark' ? 'light' : 'dark'));
+
+groupFilter.addEventListener('change', event => { state.filters.group = event.target.value; render(); });
+lifecycleFilter.addEventListener('change', event => { state.filters.lifecycle = event.target.value; render(); });
+audienceFilter.addEventListener('change', event => { state.filters.audience = event.target.value; render(); });
+tierFilter.addEventListener('change', event => { state.filters.tier = event.target.value; render(); });
+
+applyTheme('dark');
+activeViewMode('simple');
+refresh();
+window.setInterval(refresh, refreshMs);
+</script>
+</body>
+</html>

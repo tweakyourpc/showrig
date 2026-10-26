@@ -1,0 +1,26 @@
+[project]
+name = "showrig"
+version = "0.1.0"
+description = "A director's wizard that turns your answers and media into a finished film, offline, with Blender and the ArtCraft suite."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Christopher Davis" }]
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "scipy>=1.11", "fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.18"]
+
+[project.urls]
+Homepage = "https://github.com/tweakyourpc/showrig"
+
+[project.scripts]
+showrig = "showrig.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["showrig*"]
+
+[tool.setuptools.package-data]
+showrig = ["assets/*", "static/*", "static/fonts/*"]

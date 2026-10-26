@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Showrig demo terminal</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at 30% 20%, #142238, #070b14 70%); font: 16px/1.5 "JetBrains Mono", ui-monospace, monospace; color: #d7e2ee; }
+  .win { width: min(1100px, 90vw); border-radius: 14px; background: #0c1220ee; box-shadow: 0 30px 80px #000a, 0 0 0 1px #24324a; overflow: hidden; }
+  .bar { display: flex; gap: 8px; padding: 12px 16px; background: #111a2c; }
+  .bar i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+  .bar i:nth-child(2) { background: #febc2e; } .bar i:nth-child(3) { background: #28c840; }
+  .bar span { margin-left: 12px; color: #7d8fa8; font-size: 13px; }
+  pre { margin: 0; padding: 22px 26px 6px; white-space: pre-wrap; min-height: 380px; }
+  .row { display: flex; padding: 0 26px 24px; gap: 10px; }
+  .row b { color: #46d9b0; }
+  input { flex: 1; background: none; border: 0; outline: 0; color: inherit; font: inherit; caret-color: #46d9b0; }
+  .ok { color: #46d9b0; } .dim { color: #7d8fa8; } .acc { color: #8b5cf6; }
+  .bar-fill { display: inline-block; height: 10px; background: linear-gradient(90deg, #46d9b0, #3fd6e0); border-radius: 3px; vertical-align: middle; transition: width .25s; }
+</style>
+<div class="win">
+  <div class="bar"><i></i><i></i><i></i><span>showrig — ~/films/launch</span></div>
+  <pre id="out"><span class="dim">Showrig 0.1.0 · everything runs on this machine</span>
+</pre>
+  <div class="row"><b>$</b><input id="cmd" autocomplete="off" spellcheck="false"></div>
+</div>
+<script>
+const out = document.getElementById('out'), cmd = document.getElementById('cmd');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const say = html => { out.insertAdjacentHTML('beforeend', html + '\n'); };
+const STEPS = [['footage', 'normalized 3 clips to 1920x1080 at 60 fps'], ['voice', '7 lines, Kokoro af_heart, 41.2s'],
+  ['plan', '58.4s, 14 picture clips, 19 captions'], ['blender', 'intro, 3 establishing shots, outro'],
+  ['titles', '5 EffectCraft cards'], ['music', 'bright score, ducked under the voice'], ['filmcraft', 'launch.fcproj, 6 tracks'],
+  ['render', 'launch.mp4 · NVENC']];
+cmd.addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  const text = cmd.value; cmd.value = '';
+  say(`<b class="ok">$</b> ${text}`);
+  if (!text.startsWith('showrig make')) { say('<span class="dim">try: showrig make launch</span>'); return; }
+  for (const [name, detail] of STEPS) {
+    say(`  <span class="acc">${name.padEnd(10)}</span><span class="bar-fill" style="width:0" id="b-${name}"></span>`);
+    const bar = document.getElementById('b-' + name);
+    for (let w = 0; w <= 220; w += 22) { bar.style.width = w + 'px'; await sleep(45); }
+    bar.insertAdjacentHTML('afterend', `  <span class="dim">${detail}</span>`);
+  }
+  say('\n<span class="ok">done.</span> out/launch.mp4  out/launch.fcproj  out/launch.srt');
+});
+cmd.focus();
+</script>

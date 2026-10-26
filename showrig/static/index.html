@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f1">
+  <title>Showrig · Your small film studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Showrig home"><span class="brand-mark" aria-hidden="true">s</span>showrig<span class="brand-dot">.</span></a>
+    <p class="studio-label">YOUR SMALL FILM STUDIO</p>
+    <button class="new-button" data-action="new"><span aria-hidden="true">＋</span> New film</button>
+    <div class="library-heading"><span>YOUR FILMS</span><button class="icon-button" data-action="library" aria-label="Show film library">↗</button></div>
+    <nav id="library" aria-label="Saved films"></nav>
+    <div class="sidebar-bottom"><span class="status-dot"></span><strong>Made right here.</strong><p>Your files stay on this computer.<br>No connection needed to create.</p><button class="text-button" data-action="setup">Check setup</button></div>
+  </aside>
+  <main>
+    <header class="topbar"><span id="breadcrumb">Studio / Your films</span><span id="save-status" role="status">OFFLINE STUDIO</span></header>
+    <div id="notice" role="alert" hidden></div>
+    <div id="app"><div class="loading">Opening your studio…</div></div>
+  </main>
+  <dialog id="new-dialog">
+    <form id="new-form">
+      <div class="dialog-top"><span class="eyebrow">A NEW BEGINNING</span><button class="icon-button" type="button" data-action="close-dialog" aria-label="Close">×</button></div>
+      <h2>What are we making?</h2><p class="muted">Give your film a name. You can change everything later.</p>
+      <label>Film title<input name="title" id="new-title" maxlength="120" placeholder="A name for your next film" required autocomplete="off"></label>
+      <div id="new-templates" class="template-grid"></div>
+      <button class="primary wide" type="submit">Create film <span aria-hidden="true">→</span></button>
+    </form>
+  </dialog>
+  <dialog id="setup-dialog"><div class="dialog-top"><span class="eyebrow">THIS COMPUTER</span><button class="icon-button" data-action="close-setup" aria-label="Close">×</button></div><h2>Ready when you are.</h2><div id="setup-content"></div></dialog>
+</body>
+</html>
