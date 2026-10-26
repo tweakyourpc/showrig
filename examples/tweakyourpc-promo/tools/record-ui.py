@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record the "made on this PC" clips: Blender, EffectCraft and FilmCraft at work on this film.
 
-  tools/record-ui.py [FILM_DIR]        default: ~/Projects/showrig/films/tweakyourpc-promo
+  tools/record-ui.py [FILM_DIR]        default: <showrig>/films/tweakyourpc-promo
 
 Run it after a build, so the apps open this film's own files: the intro's Blender scene, the
 Game Night title's EffectCraft project and the FilmCraft edit. Each app runs on a private virtual
@@ -176,7 +176,7 @@ def filmcraft(film: Path, work: Path) -> None:
 
 
 def main() -> None:
-    film = Path(sys.argv[1] if len(sys.argv) > 1 else Path.home() / "Projects/showrig/films/tweakyourpc-promo")
+    film = Path(sys.argv[1] if len(sys.argv) > 1 else TOOLS.parents[2] / "films" / "tweakyourpc-promo")
     for need in (film / "work/stage/intro.blend", film / "work/titles/game-night.ecproj"):
         if not need.exists():
             raise SystemExit(f"{need} not found: build the film first (./build.sh --draft is enough)")

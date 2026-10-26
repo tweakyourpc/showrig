@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write pages/agent-terminal/index.html: the real tool calls behind this film, replayed in a terminal.
 
-  tools/make-terminal-page.py [FILM_DIR]        default: ~/Projects/showrig/films/tweakyourpc-promo
+  tools/make-terminal-page.py [FILM_DIR]        default: <showrig>/films/tweakyourpc-promo
 
 Every command and output line comes from the film's own build logs (work/logs), in the order the
 build ran them: the voice, the EffectCraft titles, the Blender stage, the FilmCraft edit and export.
@@ -93,7 +93,7 @@ setTimeout(next, 400);
 
 
 def main() -> None:
-    film = Path(sys.argv[1] if len(sys.argv) > 1 else Path.home() / "Projects/showrig/films/tweakyourpc-promo")
+    film = Path(sys.argv[1] if len(sys.argv) > 1 else KIT.parents[1] / "films" / "tweakyourpc-promo")
     lines = session(film)
     if not lines:
         raise SystemExit(f"no build logs in {film / 'work/logs'}: build the film first")

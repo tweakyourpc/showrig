@@ -9,6 +9,9 @@ authors = [{ name = "Christopher Davis" }]
 requires-python = ">=3.11"
 dependencies = ["numpy>=1.26", "scipy>=1.11", "fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.18"]
 
+[project.optional-dependencies]
+test = ["httpx>=0.27"]
+
 [project.urls]
 Homepage = "https://github.com/tweakyourpc/showrig"
 

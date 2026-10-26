@@ -180,6 +180,7 @@ never a cutoff for narration. `style.design` selects the new title treatment.
 Run the fast checks with `workspace-quality-gate` or:
 
 ```sh
+pip install -e '.[test]'
 python3 -m unittest discover -s tests
 node --check showrig/static/app.js
 ```
