@@ -1,0 +1,20 @@
+{
+  "title": "Core sample",
+  "kind": "demo",
+  "format": "1080p30",
+  "style": {"accent": "#46d9b0", "titles": "rise", "transitions": "simple", "pushIn": 4, "showcase3d": false},
+  "voice": {"source": "files"},
+  "music": {"source": "procedural", "mood": "calm", "volumeDb": -16},
+  "captions": {"mode": "burn"},
+  "scenes": [
+    {"kind": "card", "id": "title", "title": "Core sample", "tagline": "Supplied media, nothing generated",
+     "image": {"file": "image.png"}, "voice": ["voice/line-1.flac"],
+     "lines": ["This film was built from supplied files only."]},
+    {"kind": "segment", "id": "clip", "title": "A supplied clip", "tagline": "Brought to the film's size",
+     "shots": [{"file": "clip.mp4"}], "voice": ["voice/line-2.flac"],
+     "lines": ["A supplied clip, fitted to the film's size and frame rate."]},
+    {"kind": "card", "id": "end", "title": "Core profile", "tagline": "FilmCraft, EffectCraft and ffmpeg",
+     "voice": ["voice/line-3.flac"],
+     "lines": ["No speech model, browser or 3D engine was needed."]}
+  ]
+}

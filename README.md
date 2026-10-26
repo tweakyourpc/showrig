@@ -197,6 +197,14 @@ It requires locally installed Playwright and Chromium. Set `SHOWRIG_PLAYWRIGHT` 
 package is outside the global npm directory. The browser checks need an execution
 environment that permits Chromium and local network connections.
 
+## Checking a machine
+
+```sh
+showrig doctor                    # what is installed (found, not yet proven)
+showrig doctor --deep             # prove each capability with a small real job
+showrig receipt films/launch      # what a film was built from, on what tools, with checksums
+```
+
 ## Credits
 
 Idea author and orchestrator: **Christopher Davis** ([github.com/tweakyourpc](https://github.com/tweakyourpc)).

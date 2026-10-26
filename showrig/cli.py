@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 
-from . import __version__, tools
+from . import __version__
 from .board import markdown, normalize
 from .project import Film, film_lock
 
@@ -27,6 +27,19 @@ def _make(film: Film, until: str, draft: bool, progress) -> None:
         film.style["quality"] = "draft"
     stop = STAGES.index(until)
     t0 = time.time()
+    timing, report = {}, progress
+
+    def mark(stage: str | None) -> None:  # time each stage, for work/last-build.json
+        now = time.time()
+        if timing:
+            last = timing[next(reversed(timing))]
+            last.setdefault("seconds", round(now - last["at"], 2))
+        if stage:
+            timing[stage] = {"at": now}
+
+    def progress(stage: str) -> None:
+        mark(stage)
+        report(stage)
     print(f"{film.board['title']}: {film.fmt['width']}x{film.fmt['height']} at {film.fmt['fps']} fps")
     progress("footage")
     footage.build(film)
@@ -59,6 +72,10 @@ def _make(film: Film, until: str, draft: bool, progress) -> None:
         return
     progress("render")
     assemble.render(film)
+    mark(None)
+    (film.work / "last-build.json").write_text(json.dumps(
+        {"seconds": round(time.time() - t0, 2), "draft": draft,
+         "stages": {k: v["seconds"] for k, v in timing.items()}}, indent=1))
     print(f"done in {time.time() - t0:.0f}s: {film.out / (film.name + '.mp4')}")
 
 
@@ -82,6 +99,23 @@ def answers(path: Path) -> dict:
     if (data.get("music") or {}).get("file"):
         data["music"]["file"] = fix(data["music"]["file"])
     return data
+
+
+def doctor(a) -> int:
+    from . import capabilities
+    try:
+        rep = capabilities.report(a.profile, a.deep)
+    except Exception as e:  # the diagnostic itself broke: say so, and keep it apart from "missing"
+        print(f"doctor failed: {type(e).__name__}: {e}")
+        return 3
+    text = json.dumps(rep, indent=1)
+    if a.out:
+        a.out.write_text(text + "\n")
+    if a.json:
+        print(text)
+    else:
+        capabilities.print_report(rep)
+    return 0 if not rep["summary"]["unavailable"] else 1
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -115,7 +149,19 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--line", action="append", default=[], metavar="ROLE=NAME")
     s.add_argument("--title", help="heading over the credits (default: the film title)")
 
-    sub.add_parser("doctor", help="show which tools are installed and what each one unlocks")
+    s = sub.add_parser("receipt", help="record what a film was built from, on what machine, with checksums")
+    s.add_argument("dir", type=Path)
+    s.add_argument("--doctor", type=Path, help="a `doctor --deep --json` report to record as the environment")
+    s.add_argument("--out", type=Path, help="where to write it (default: out/<name>-receipt.json)")
+
+    s = sub.add_parser("doctor", help="show which tools are installed and what each one unlocks",
+                       description="Exit 0: the requested capabilities are ready (or found, without --deep); "
+                                   "1: one is unavailable; 3: the check itself failed.")
+    s.add_argument("--profile", choices=["core", "capture", "voice", "showcase3d", "studio", "drafting"],
+                   help="check only this profile, and require all of it (default: everything, requiring core)")
+    s.add_argument("--deep", action="store_true", help="prove each capability with a small real job")
+    s.add_argument("--json", action="store_true", help="print the report as JSON")
+    s.add_argument("--out", type=Path, help="also write the JSON report here")
 
     s = sub.add_parser("web", help="open the offline browser wizard")
     s.add_argument("--projects", type=Path, default=Path("films"))
@@ -128,8 +174,15 @@ def main(argv: list[str] | None = None) -> None:
         from .web import serve
         serve(a.projects, a.host, a.port, not a.no_open)
         return
+    if a.cmd == "receipt":
+        from . import receipt
+        film = Film.load(a.dir)
+        out = a.out or film.out / f"{film.name}-receipt.json"
+        out.write_text(json.dumps(receipt.build(film, a.doctor), indent=1) + "\n")
+        print(f"receipt: {out}")
+        return
     if a.cmd == "doctor":
-        raise SystemExit(tools.doctor())
+        raise SystemExit(doctor(a))
     if a.cmd == "new":
         from .wizard import create
         create(a.dir, answers(a.answers) if a.answers else None, a.force)
