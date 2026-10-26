@@ -1,0 +1,21 @@
+{
+  "title": "Acceptance film",
+  "kind": "demo",
+  "format": "1080p30",
+  "style": {"accent": "#46d9b0", "titles": "rise", "transitions": "simple", "pushIn": 4, "showcase3d": false},
+  "voice": {"source": "tts", "voice": "af_heart", "say": {"Showrig": "Show rig"}},
+  "music": {"source": "procedural", "mood": "calm", "volumeDb": -16},
+  "captions": {"mode": "burn"},
+  "scenes": [
+    {"kind": "card", "id": "title", "title": "Acceptance film", "tagline": "Built by Showrig from local files",
+     "image": {"file": "image.png"},
+     "lines": ["This short film checks every core step of Showrig."]},
+    {"kind": "segment", "id": "page", "title": "A local page", "tagline": "Recorded in a browser",
+     "shots": [{"capture": {"url": "page.html", "scale": 1.0,
+                            "actions": ["wait 0.6", "type #name hello", "wait 0.3", "click #go", "wait 1.2"]}}],
+     "lines": ["A page on this computer is recorded with a typed word and a click."]},
+    {"kind": "segment", "id": "clip", "title": "A supplied clip", "tagline": "Brought to the film's size",
+     "shots": [{"file": "clip.mp4"}],
+     "lines": ["A supplied clip joins the edit."]}
+  ]
+}

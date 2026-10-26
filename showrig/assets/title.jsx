@@ -1,6 +1,7 @@
 // Showrig title card for EffectCraft. Expects TITLE = {name, tagline, subtitle, color, secs, layout,
-// style, mono, width, height, fps} to be defined before this file. Renders over transparency.
+// style, mono, width, height, fps, inset} to be defined before this file. Renders over transparency.
 //   layout: center | lower      style: rise | typewriter
+//   inset: a centred title moves into the space right of this share of the width, beside an image
 var T = TITLE;
 var W = T.width, H = T.height, FPS = T.fps;
 var S = Math.min(W / 1920, H / 1080);          // scale everything from a 1080p design
@@ -12,7 +13,7 @@ function hex(c) {
 }
 var accent = hex(T.color);
 var centered = T.layout === "center";
-var x0 = centered ? W / 2 : 150 * S;
+var x0 = centered ? (T.inset ? (W * T.inset + W - 90 * S) / 2 : W / 2) : 150 * S;
 var yTitle = centered ? H / 2 + 230 * S : H - 345 * S;
 
 function tr(layer, name) { return layer.property("ADBE Transform Group").property(name); }
@@ -73,7 +74,7 @@ keys(tr(scrim, "ADBE Opacity"), [[0, 0], [0.5, 62], [outAt, 62], [T.secs, 0]]);
 var bar = centered ? comp.layers.addSolid(accent, "Accent", Math.round(180 * S), Math.round(6 * S), 1, T.secs)
                    : comp.layers.addSolid(accent, "Accent", Math.round(12 * S), Math.round(120 * S), 1, T.secs);
 if (centered) {
-  tr(bar, "ADBE Position").setValue([W / 2, yTitle + 140 * S]);
+  tr(bar, "ADBE Position").setValue([x0, yTitle + 140 * S]);
   keys(tr(bar, "ADBE Scale"), [[0.5, [0, 100]], [1.3, [100, 100]], [outAt, [100, 100]], [T.secs, [0, 100]]]);
 } else {
   tr(bar, "ADBE Anchor Point").setValue([6 * S, 120 * S]);
@@ -88,7 +89,7 @@ if (typing) {
   // Left-justified so the line grows to the right; centred layouts start from the measured left edge.
   title = text(T.name, size, T.mono || "JetBrainsMono-Bold", [1, 1, 1], 0, true);
   var wFull = title.sourceRectAtTime(0, false).width;
-  var xLeft = centered ? W / 2 - wFull / 2 : x0;
+  var xLeft = centered ? x0 - wFull / 2 : x0;
   tr(title, "ADBE Position").setValue([xLeft, yTitle]);
   tagFrom = typeOn(title, T.name, 0.25, Math.max(12, T.name.length / 1.1)) + 0.15;
   keys(tr(title, "ADBE Opacity"), [[outAt, 100], [T.secs, 0]]);

@@ -8,9 +8,10 @@ from __future__ import annotations
 import json
 import shutil
 import time
+from pathlib import Path
 
 from .. import tools
-from ..project import Film, run
+from ..project import Film, probe, run
 
 TICKS = 254016000000  # FilmCraft time base, per second
 
@@ -109,10 +110,12 @@ def build(film: Film, plan: dict, music: str | None) -> None:
             motion.append(cmd("sequence.applyVideoTransition", clip=clip, effect=effect,
                               frames=round(frames * fps / 60), edge="in"))
         prev = c
-    # Images sit left of their title: a fade in and out and a slow push, all editable keyframes.
-    size = 0.46 * h / 520 * 100  # the image's face is 520 px across in its 660 px frame
+    # Images sit left of their title, fitted into the space the title leaves them (a 660 px avatar
+    # fills its height): a fade in and out and a slow push, all editable keyframes.
     for clip, i in [(res["clips"][0], i) for (kind, i), res in zip(kinds, placed) if kind == "v3"]:
         a, b = i["start"], i["start"] + i["duration"]
+        dims = probe(Path(i["path"]))
+        size = min(0.34 * w / dims["width"], 0.584 * h / dims["height"]) * 100
         motion += [cmd("effects.setParam", clip=clip, effect="motion", param="position", value=[round(w * .25), round(h / 2)]),
                    cmd("effects.setParam", clip=clip, effect="motion", param="scale", value=round(size, 2),
                        time=fc.ticks(a), keyframe=True),
@@ -166,7 +169,6 @@ def render(film: Film, out=None) -> None:
     temporary = out.with_name(out.stem + ".rendering.mp4")
     run([tools.filmcraft(), "--project", project, "export", temporary, "--format", "h264", "--settings",
          json.dumps(settings)], film.log("render.log"))
-    from ..project import probe
     info = probe(temporary)
     if not info["width"] or info["duration"] <= 0:
         raise SystemExit("The renderer did not produce a valid video.")

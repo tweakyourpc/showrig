@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Acceptance page</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0d1420; color: #e8eef6;
+         font: 28px/1.4 "DejaVu Sans", sans-serif; }
+  main { width: 760px; padding: 48px; border-radius: 18px; background: #152033; box-shadow: 0 20px 60px #0008; }
+  h1 { margin: 0 0 24px; font-size: 44px; }
+  input { width: 100%; box-sizing: border-box; font: inherit; padding: 14px 18px; border-radius: 10px;
+          border: 2px solid #2f4466; background: #0d1420; color: inherit; }
+  button { margin-top: 20px; font: inherit; padding: 12px 26px; border: 0; border-radius: 10px;
+           background: #46d9b0; color: #06231a; font-weight: 700; }
+  #out { margin-top: 24px; min-height: 1.4em; color: #46d9b0; }
+</style></head>
+<body><main>
+  <h1>A local page</h1>
+  <input id="name" placeholder="Type a word" aria-label="Word">
+  <button id="go" type="button">Show it</button>
+  <p id="out" aria-live="polite"></p>
+</main>
+<script>
+  document.getElementById('go').addEventListener('click', () => {
+    document.getElementById('out').textContent = 'You typed: ' + document.getElementById('name').value;
+  });
+</script>
+</body></html>
