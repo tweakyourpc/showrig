@@ -145,6 +145,10 @@ class SpeechQC(unittest.TestCase):
     def test_digits_and_number_words_compare_equal(self):
         self.assertEqual(qc.words("Install 7-Zip, 7zip.7zip!"), qc.words("install seven zip seven zip seven zip"))
 
+    def test_spelled_out_urls_and_letters_compare_equal(self):
+        self.assertEqual(qc.words("at github.com slash tweak your PC"), qc.words("at github dot com slash tweak your p c"))
+        self.assertEqual(qc.words("a cat and I"), ["a", "cat", "and", "i"])
+
     def test_words_heard_joined_up_count_as_heard(self):
         film, tmp = film_with({**BOARD, "qc": {"asr": "fail", "minRecall": 0.8},
                                "scenes": [{"kind": "card", "id": "a", "title": "A", "lines": ["Astronomer becomes moon starer."]}]})

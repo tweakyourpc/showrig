@@ -4,7 +4,8 @@
 
 Speech: the final MP4 is transcribed again and every narration line is looked for in what was heard, in order.
 A line whose words come back below the minimum recall (the music masked a word, a voice clip was trimmed, the
-synthesiser mangled a name) fails. Lines whose voice beat a person deleted are not expected. The transcriber is
+synthesiser mangled a name) is heard again on its own stretch of the film, since a long transcript can drift; if it
+is still short, it fails. Lines whose voice beat a person deleted are not expected. The transcriber is
 SHOWRIG_ASR (a command with {in}, {out} and {lang}), else `whisper-ctranslate2` on the CPU; with none, the check is
 skipped and says so.
 
@@ -37,10 +38,21 @@ NUMBERS = ("zero one two three four five six seven eight nine ten eleven twelve 
 
 def words(text: str) -> list[str]:
     """Lower-case words for comparing speech; digits and letters are split ("7zip" -> "seven", "zip") and small
-    numbers spelled out, because a transcriber writes "7-Zip" where the narration says "seven zip"."""
-    out = []
+    numbers spelled out, because a transcriber writes "7-Zip" where the narration says "seven zip". "dot" is
+    dropped and spelled-out letters joined ("p c" -> "pc"), because it writes "github.com" and "PC" where the
+    voice says "github dot com" and "p c"."""
+    out: list[str] = []
+    spelling = False  # the last word is a run of spelled-out letters
     for w in re.findall(r"[a-z]+|[0-9]+", text.lower().replace("'", "")):
-        out.append(NUMBERS[int(w)] if w.isdigit() and int(w) < len(NUMBERS) else w)
+        w = NUMBERS[int(w)] if w.isdigit() and int(w) < len(NUMBERS) else w
+        if w == "dot":
+            continue
+        letter = len(w) == 1 and w not in "ai"
+        if letter and spelling:
+            out[-1] += w
+        else:
+            out.append(w)
+        spelling = letter
     return out
 
 
@@ -69,6 +81,7 @@ def speech(film: Film, video: Path) -> dict:
     if policy["asr"] == "off":
         return {"ok": True, "skipped": "qc.asr is off for this film"}
     deleted = set(m.get("deleted", []))
+    beats = {b["id"]: b for b in m.get("beats", [])}
     lines, n = [], {}
     for scene in film.scenes():
         for text in scene.get("lines", []):
@@ -99,11 +112,40 @@ def speech(film: Film, video: Path) -> dict:
         passed = recall >= policy["minRecall"]
         if not passed and "".join(line["words"]) in joined:  # heard, but spelled joined up ("Moonstarer", "OpenStreetMap")
             passed, missing = True, []
+        entry = {"id": line["id"], "text": line["text"], "recall": round(recall, 3), "missing": missing, "ok": passed}
+        if not passed:  # a long transcript can drift near the end: listen again to just this line's stretch
+            alone = relisten(film, video, beats.get(line["id"]), line["words"])
+            if alone is not None:
+                entry["alone"] = {"recall": round(alone[0], 3), "heard": alone[1]}
+                if alone[0] >= policy["minRecall"]:
+                    entry["ok"] = passed = True
         ok &= passed
-        out_lines.append({"id": line["id"], "text": line["text"], "recall": round(recall, 3), "missing": missing,
-                          "ok": passed})
+        out_lines.append(entry)
     return {"ok": ok, "policy": policy["asr"], "minRecall": policy["minRecall"], "transcriber": how,
             "heard": text.strip(), "lines": out_lines}
+
+
+def relisten(film: Film, video: Path, beat: dict | None, want: list[str]) -> tuple[float, str] | None:
+    """Transcribe only a voice beat's stretch of the film (with half a second either side); returns the line's
+    recall in it and what was heard, or None when the beat has no frames in the manifest."""
+    if not beat or beat.get("start_f") is None or not beat.get("dur_f"):
+        return None
+    fps = film.fmt["fps"]
+    start, dur = max(0.0, beat["start_f"] / fps - 0.5), beat["dur_f"] / fps + 1.0
+    with tempfile.TemporaryDirectory() as tmp:
+        clip = Path(tmp) / "line.wav"
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-i", str(video),
+                            "-vn", "-ac", "1", "-ar", "16000", str(clip)], capture_output=True, text=True)
+        if r.returncode:
+            return None
+        heard = asr(clip, Path(tmp) / "asr")
+    if heard is None:
+        return None
+    got = words(heard[0])
+    hits = sum(b.size for b in difflib.SequenceMatcher(None, want, got, autojunk=False).get_matching_blocks())
+    if "".join(want) in "".join(got):
+        hits = len(want)
+    return (hits / len(want) if want else 1.0), heard[0].strip()
 
 
 def loudness(video: Path) -> float | None:
@@ -152,6 +194,9 @@ def run(film: Film, video: Path | None = None, gate: bool = True) -> dict:
         print(f"  qc speech ({sp['transcriber']}): {len(sp['lines']) - len(bad)}/{len(sp['lines'])} lines heard")
         for line in bad:
             print(f"    MISSING in {line['id']}: {' '.join(line['missing'])}  (recall {line['recall']:.0%} of {line['text']!r})")
+        for line in sp["lines"]:
+            if line["ok"] and "alone" in line:
+                print(f"    {line['id']}: heard on a second listen ({line['alone']['recall']:.0%})")
     ms = st["measured"]
     print(f"  qc style: {ms['shots']} shots, median {ms['medianShot']} s, {ms['cutsPerMinute']} cuts/min, "
           f"{ms['lufs']} LUFS" + "".join(f"; {k} {c['value']} {'ok' if c['ok'] else 'outside'} {c['target']}"
