@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import time
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .. import tools
@@ -26,32 +28,48 @@ def job_key(film: Film, plan: dict, spec: dict) -> str:
 
 
 def build(film: Film, plan: dict) -> None:
+    """Render every 3D shot not already fresh. SHOWRIG_STAGE_JOBS shots render at once (default 1): Blender's
+    compositor runs on the CPU, so on a many-core machine a few shots side by side finish sooner."""
     out = film.work / "stage"
     out.mkdir(parents=True, exist_ok=True)
+    todo = []
     for job in plan["stage"]:
-        dst = out / f"{job['scene']}.mp4"
         spec = job_spec(film, plan, job)
         key = job_key(film, plan, spec)
-        if film.fresh(dst, key):
-            continue
-        if not tools.blender():
-            raise SystemExit("the 3D showcase needs Blender; install it or set style.showcase3d to false")
-        frames = Path(tempfile.mkdtemp(prefix=f"{job['scene']}-", suffix=".frames", dir=out))
-        job_file = out / f"{job['scene']}.job.json"
-        job_file.write_text(json.dumps({**spec, "blend": str(out / f"{job['scene']}.blend")}, indent=2))
-        print(f"  blender {job['scene']} ({job['shot']}, {job['seconds']:.1f}s, {film.style['quality']})", flush=True)
-        t0 = time.time()
-        run([tools.blender(), "-b", "-P", tools.ASSETS / "blender_stage.py", "--", job_file, frames],
-            film.log(f"blender-{job['scene']}.log"))
-        expected = round(spec["seconds"] * spec["fps"])
-        if any(not (frames / f"f_{i:04}.png").is_file() for i in range(1, expected + 1)):
-            raise SystemExit(f"Blender produced an incomplete frame sequence. Frames retained in {frames}")
-        run(["ffmpeg", "-v", "error", "-y", "-framerate", film.fmt["fps"], "-start_number", "1", "-i", frames / "f_%04d.png",
-             "-vf", f"scale={film.fmt['width']}:{film.fmt['height']}:flags=lanczos,format=yuv420p",
-             *tools.h264_encoder(), "-movflags", "+faststart", dst], film.log(f"blender-{job['scene']}-encode.log"))
-        shutil.rmtree(frames)
-        film.stamp(dst, key)
-        print(f"    done in {time.time() - t0:.0f}s")
+        if not film.fresh(out / f"{job['scene']}.mp4", key):
+            todo.append((job, spec, key))
+    if todo and not tools.blender():
+        raise SystemExit("the 3D showcase needs Blender; install it or set style.showcase3d to false")
+    workers = max(1, min(len(todo), int(os.environ.get("SHOWRIG_STAGE_JOBS") or 1)))
+    if workers == 1:
+        for item in todo:
+            shot(film, out, *item)
+        return
+    print(f"  blender: {len(todo)} shots, {workers} at a time", flush=True)
+    with ThreadPoolExecutor(workers) as pool:
+        for f in [pool.submit(shot, film, out, *item) for item in todo]:
+            f.result()
+
+
+def shot(film: Film, out: Path, job: dict, spec: dict, key: str) -> None:
+    """One shot: Blender renders the frames, ffmpeg encodes them."""
+    dst = out / f"{job['scene']}.mp4"
+    frames = Path(tempfile.mkdtemp(prefix=f"{job['scene']}-", suffix=".frames", dir=out))
+    job_file = out / f"{job['scene']}.job.json"
+    job_file.write_text(json.dumps({**spec, "blend": str(out / f"{job['scene']}.blend")}, indent=2))
+    print(f"  blender {job['scene']} ({job['shot']}, {job['seconds']:.1f}s, {film.style['quality']})", flush=True)
+    t0 = time.time()
+    run([tools.blender(), "-b", "-P", tools.ASSETS / "blender_stage.py", "--", job_file, frames],
+        film.log(f"blender-{job['scene']}.log"))
+    expected = round(spec["seconds"] * spec["fps"])
+    if any(not (frames / f"f_{i:04}.png").is_file() for i in range(1, expected + 1)):
+        raise SystemExit(f"Blender produced an incomplete frame sequence. Frames retained in {frames}")
+    run(["ffmpeg", "-v", "error", "-y", "-framerate", film.fmt["fps"], "-start_number", "1", "-i", frames / "f_%04d.png",
+         "-vf", f"scale={film.fmt['width']}:{film.fmt['height']}:flags=lanczos,format=yuv420p",
+         *tools.h264_encoder(), "-movflags", "+faststart", dst], film.log(f"blender-{job['scene']}-encode.log"))
+    shutil.rmtree(frames)
+    film.stamp(dst, key)
+    print(f"    {job['scene']} done in {time.time() - t0:.0f}s", flush=True)
 
 
 def backdrops(film: Film, plan: dict) -> None:

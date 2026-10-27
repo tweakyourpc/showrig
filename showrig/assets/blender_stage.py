@@ -239,6 +239,8 @@ def compositor(scene: bpy.types.Scene) -> None:
     if "Size" in ell.inputs:
         ell.inputs["Size"].default_value = (1.25, 1.15)
     blur = nodes.new("CompositorNodeBlur")
+    if hasattr(blur, "filter_type"):  # a recursive Gaussian: the same soft mask at a fraction of the CPU time
+        blur.filter_type = "FAST_GAUSS"
     try:
         if hasattr(blur, "size_x"):
             blur.size_x = 300
