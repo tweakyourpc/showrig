@@ -209,6 +209,8 @@ def smooth_all() -> None:
 def compositor(scene: bpy.types.Scene) -> None:
     """Bloom on the rims and a soft vignette (written for both the 4.x and 5.x compositors)."""
     scene.use_nodes = True
+    if hasattr(scene.render, "compositor_device"):  # 4.2+: composite on the GPU, not the CPU
+        scene.render.compositor_device = "GPU"
     tree = getattr(scene, "compositing_node_group", None)
     if tree is None and not hasattr(scene, "node_tree"):
         tree = bpy.data.node_groups.new("Compositor", "CompositorNodeTree")
