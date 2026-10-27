@@ -145,6 +145,13 @@ class SpeechQC(unittest.TestCase):
     def test_digits_and_number_words_compare_equal(self):
         self.assertEqual(qc.words("Install 7-Zip, 7zip.7zip!"), qc.words("install seven zip seven zip seven zip"))
 
+    def test_words_heard_joined_up_count_as_heard(self):
+        film, tmp = film_with({**BOARD, "qc": {"asr": "fail", "minRecall": 0.8},
+                               "scenes": [{"kind": "card", "id": "a", "title": "A", "lines": ["Astronomer becomes moon starer."]}]})
+        self.addCleanup(tmp.cleanup)
+        with mock.patch.object(qc, "asr", return_value=("Astronomer becomes Moonstarer.", "fake")):
+            self.assertTrue(qc.speech(film, film.root / "x.mp4")["ok"])
+
     def test_no_transcriber_skips(self):
         film, tmp = film_with(BOARD)
         self.addCleanup(tmp.cleanup)

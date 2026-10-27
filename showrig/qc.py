@@ -90,12 +90,15 @@ def speech(film: Film, video: Path) -> dict:
     for block in difflib.SequenceMatcher(None, want, got, autojunk=False).get_matching_blocks():
         for k in range(block.a, block.a + block.size):
             hit[k] = True
+    joined = "".join(got)
     out_lines, ok = [], True
     for i, line in enumerate(lines):
         idx = [k for k, o in enumerate(owner) if o == i]
         recall = sum(hit[k] for k in idx) / len(idx) if idx else 1.0
         missing = [want[k] for k in idx if not hit[k]]
         passed = recall >= policy["minRecall"]
+        if not passed and "".join(line["words"]) in joined:  # heard, but spelled joined up ("Moonstarer", "OpenStreetMap")
+            passed, missing = True, []
         ok &= passed
         out_lines.append({"id": line["id"], "text": line["text"], "recall": round(recall, 3), "missing": missing,
                           "ok": passed})
