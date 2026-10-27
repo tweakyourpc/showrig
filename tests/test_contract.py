@@ -142,6 +142,9 @@ class SpeechQC(unittest.TestCase):
         with mock.patch.object(qc, "asr", return_value=("Nothing to see here.", "fake")):
             self.assertTrue(qc.speech(film, video)["ok"])
 
+    def test_digits_and_number_words_compare_equal(self):
+        self.assertEqual(qc.words("Install 7-Zip, 7zip.7zip!"), qc.words("install seven zip seven zip seven zip"))
+
     def test_no_transcriber_skips(self):
         film, tmp = film_with(BOARD)
         self.addCleanup(tmp.cleanup)

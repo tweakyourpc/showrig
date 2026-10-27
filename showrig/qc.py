@@ -31,8 +31,17 @@ from .project import Film
 from .stages.voice import spoken
 
 
+NUMBERS = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+           "seventeen eighteen nineteen twenty").split()
+
+
 def words(text: str) -> list[str]:
-    return re.findall(r"[a-z0-9]+", text.lower().replace("'", ""))
+    """Lower-case words for comparing speech; digits and letters are split ("7zip" -> "seven", "zip") and small
+    numbers spelled out, because a transcriber writes "7-Zip" where the narration says "seven zip"."""
+    out = []
+    for w in re.findall(r"[a-z]+|[0-9]+", text.lower().replace("'", "")):
+        out.append(NUMBERS[int(w)] if w.isdigit() and int(w) < len(NUMBERS) else w)
+    return out
 
 
 def asr(audio: Path, out: Path, lang: str = "en") -> tuple[str, str] | None:
