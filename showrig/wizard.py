@@ -198,7 +198,10 @@ def create(root: Path, answers: dict | None, force: bool = False) -> None:
         raise SystemExit(f"{target} exists; edit it, or pass --force to start over")
     root.mkdir(parents=True, exist_ok=True)
     (root / "assets").mkdir(exist_ok=True)
-    board = normalize(answers if answers is not None else interview(root))
+    answers = answers if answers is not None else interview(root)
+    answers.setdefault("provenance", {"gate": "strict"})  # new films: an unlicensed supplied source blocks the final render
+    answers.setdefault("qc", {"asr": "fail", "minRecall": 0.8})  # new films: a narration word lost in the mix fails
+    board = normalize(answers)
     target.write_text(json.dumps(board, indent=2) + "\n")
     (root / "STORYBOARD.md").write_text(markdown(board))
     print(f"\nstoryboard: {target}\nread it:    {root / 'STORYBOARD.md'}")

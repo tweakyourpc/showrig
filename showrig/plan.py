@@ -7,7 +7,6 @@ where everything sits on the timeline.
 from __future__ import annotations
 
 import json
-import re
 import textwrap
 
 from .project import Film, probe
@@ -35,6 +34,53 @@ def caption_chunks(text: str, start: float, length: float) -> list[dict]:
         cues.append({"text": p, "start": round(t, 3), "duration": round(d, 3)})
         t += d
     return cues
+
+
+def identify(plan: dict, fps: int) -> None:
+    """Give every entry a stable beat ID and whole-frame timing, in place.
+
+    An ID is the scene's id and the entry's role (``clip/shot2``, ``clip/title``, ``intro/voice1``); it depends
+    only on the storyboard, never on timing, so it survives re-runs and names the clip in the FilmCraft project.
+    Frames are the plan's time base: each entry gets ``start_f`` and ``dur_f`` (``in_f`` for a source in-point),
+    rounded from its edges so neighbours stay contiguous, and its seconds are re-derived from those frames.
+    FilmCraft ticks are made from frames only at the boundary (stages/assemble.py).
+    """
+    def snap(e: dict) -> None:
+        start = round(e["start"] * fps)
+        e["start_f"], e["start"] = start, round(start / fps, 6)
+        if "duration" in e:
+            e["dur_f"] = max(1, round((e["start"] + e["duration"]) * fps) - start)
+            e["duration"] = round(e["dur_f"] / fps, 6)
+        if "in" in e:
+            e["in_f"] = round(e["in"] * fps)
+
+    counts: dict[tuple, int] = {}
+
+    def nth(scene: str, role: str) -> int:
+        counts[scene, role] = counts.get((scene, role), 0) + 1
+        return counts[scene, role]
+
+    roles = {"stage": "stage", "backdrop": "backdrop"}
+    for e in plan["video"]:
+        e["id"] = f"{e['scene']}/shot{e['shot']}" if e["kind"] == "footage" else f"{e['scene']}/{roles[e['kind']]}"
+    for e in plan["titles"]:
+        e["id"] = f"{e['scene']}/title"
+    for e in plan["narration"]:
+        e["line"] = e.get("id")  # the voice stage's own line id, e.g. clip-01
+        e["id"] = f"{e['scene']}/voice{nth(e['scene'], 'voice')}"
+    for e in plan["captions"]:
+        e["id"] = f"{e['scene']}/cap{nth(e['scene'], 'cap')}"
+    for e in plan["notes"]:
+        e["id"] = f"{e['scene']}/note"
+    for e in plan["images"]:
+        e["id"] = f"{e['scene']}/image"
+    for key in ("video", "titles", "narration", "captions", "notes", "images"):
+        for e in plan[key]:
+            snap(e)
+    ids = [e["id"] for key in ("video", "titles", "narration", "captions", "notes", "images") for e in plan[key]]
+    dupes = sorted({i for i in ids if ids.count(i) > 1})
+    if dupes:
+        raise SystemExit(f"two plan entries share an id: {dupes}; give each scene a unique id")
 
 
 def hero(film: Film, scene: dict) -> dict:
@@ -77,7 +123,7 @@ def build(film: Film, voice: list[dict]) -> dict:
         for item in by_scene.get(sid, []):
             if item["path"]:
                 narration.append({**item, "start": round(at, 3)})
-            captions += caption_chunks(item["text"], at, item["duration"])
+            captions += [{**c, "scene": sid} for c in caption_chunks(item["text"], at, item["duration"])]
             at += item["duration"] + gap
         speech_end = at - gap if by_scene.get(sid) else t
         content_timing = film.board.get("timing") == "content"
@@ -134,12 +180,14 @@ def build(film: Film, voice: list[dict]) -> dict:
                 lengths[-1] += short
                 shots[-1] = (extend_clip(film, path, src_in + lengths[-1] + .5), src_in, weight)
             ft = foot_start
-            for (path, src_in, _), d in zip(shots, lengths):
-                video.append({"kind": "footage", "scene": sid, "path": str(path), "start": round(ft, 4),
-                              "in": src_in, "duration": round(d, 4), "push": film.style["pushIn"] > 0})
+            for n, ((path, src_in, _), d) in enumerate(zip(shots, lengths), 1):
+                video.append({"kind": "footage", "scene": sid, "shot": n, "path": str(path), "start": round(ft, 4),
+                              "in": src_in, "duration": round(d, 4), "push": film.style["pushIn"] > 0,
+                              "capture": bool(scene["shots"][n - 1].get("capture"))})
                 ft += d
             if scene.get("note"):
-                notes.append({"text": scene["note"], "start": foot_start + 0.3, "duration": ft - foot_start - 0.6})
+                notes.append({"scene": sid, "text": scene["note"], "start": foot_start + 0.3,
+                              "duration": ft - foot_start - 0.6})
             t = ft
 
     if not rolled:
@@ -155,6 +203,7 @@ def build(film: Film, voice: list[dict]) -> dict:
     plan = {"duration": round(t, 3), "video": video, "titles": titles if film.style["titles"] != "none" else
             [x for x in titles if x["layout"] == "credits"], "narration": narration, "captions": captions,
             "notes": notes, "stage": stage, "panels": panels, "backdrops": backdrops, "images": images}
+    identify(plan, film.fmt["fps"])
     (film.work / "plan.json").write_text(json.dumps(plan, indent=2) + "\n")
     print(f"  plan: {t:.1f}s, {len(video)} picture clips, {len(narration)} voice lines, {len(captions)} captions")
     return plan

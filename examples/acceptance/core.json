@@ -8,13 +8,16 @@
   "captions": {"mode": "burn"},
   "scenes": [
     {"kind": "card", "id": "title", "title": "Core sample", "tagline": "Supplied media, nothing generated",
-     "image": {"file": "image.png"}, "voice": ["voice/line-1.flac"],
+     "image": {"file": "image.png", "provenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"}}, "voice": ["voice/line-1.flac"],
+     "voiceProvenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"},
      "lines": ["This film was built from supplied files only."]},
     {"kind": "segment", "id": "clip", "title": "A supplied clip", "tagline": "Brought to the film's size",
-     "shots": [{"file": "clip.mp4"}], "voice": ["voice/line-2.flac"],
+     "shots": [{"file": "clip.mp4", "provenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"}}], "voice": ["voice/line-2.flac"],
+     "voiceProvenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"},
      "lines": ["A supplied clip, fitted to the film's size and frame rate."]},
     {"kind": "card", "id": "end", "title": "Core profile", "tagline": "FilmCraft, EffectCraft and ffmpeg",
      "voice": ["voice/line-3.flac"],
+     "voiceProvenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"},
      "lines": ["No speech model, browser or 3D engine was needed."]}
   ]
 }

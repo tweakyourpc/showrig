@@ -119,6 +119,39 @@ showrig credits films/launch --line "Directed by=Your Name" --line "Music=Showri
 showrig render films/launch
 ```
 
+## Edit it, then run it again
+
+The project is the deliverable and the MP4 is a copy that can always be rendered again. Every clip in the
+FilmCraft project is named `<beat id> · <label>` (`clip/shot1 · clip.mp4`, `intro/title · Launch`), coloured by
+kind, on tracks named by role (Picture, Titles, Overlays, Voice, Music, Captions), with a marker across each
+scene. `out/` also holds `manifest.json` (every beat, its frames and source hash), the same cut as `.otio` and
+`.fcpxml` for other editors, `sources.lock` (every source and its licence) and `qc-report.json`.
+
+What is editable: the timeline (cut, timing, clips, voice, music, captions) and the titles (EffectCraft
+projects). The 3D stage, browser captures, backdrops and generated speech and score are compiled: Showrig makes
+them again from the storyboard. The marker at frame 0 of every project says so.
+
+Edit the project in FilmCraft (or let an agent edit it), then:
+
+```sh
+showrig diff films/launch          # what you changed since the build: moved, trimmed, deleted, relabelled...
+showrig make films/launch          # re-run: your edits stay, untouched beats follow the storyboard
+showrig lock films/launch clip     # freeze a beat (clip/title) or a whole scene (clip): never regenerated
+showrig unlock films/launch clip   # hand it back to Showrig
+showrig make films/launch --fresh  # start the project over (the old one goes to out/versions/)
+```
+
+`make` keeps every beat you changed, keeps what you deleted deleted (`--restore ID` brings one back), refreshes
+and retimes the beats you did not touch, and never moves anything onto a clip of yours: where the storyboard and
+your edit disagree it adds a magenta CONFLICT marker instead, and lists every decision in
+`out/reconcile-report.json`. Keep the id at the front of a clip's name when you rename it.
+
+Rights and checks. Supplied media carry `"provenance": {"licence": ..., "credit": ..., "url": ...}`;
+`showrig sources FILM` lists them and `showrig sources FILM set REF --licence NAME` records one. In a new film a
+source without a licence blocks the final render (drafts still build). After rendering, Showrig transcribes the
+film again and checks that every narration line is heard (`showrig qc FILM`), so a word lost under the music is
+caught; it needs a transcriber (`whisper-ctranslate2`, or any command set in `SHOWRIG_ASR`).
+
 ## Storyboard reference
 
 ```jsonc

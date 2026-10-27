@@ -8,14 +8,15 @@
   "captions": {"mode": "burn"},
   "scenes": [
     {"kind": "card", "id": "title", "title": "Acceptance film", "tagline": "Built by Showrig from local files",
-     "image": {"file": "image.png"},
+     "image": {"file": "image.png", "provenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"}},
      "lines": ["This short film checks every core step of Showrig."]},
     {"kind": "segment", "id": "page", "title": "A local page", "tagline": "Recorded in a browser",
      "shots": [{"capture": {"url": "page.html", "scale": 1.0,
-                            "actions": ["wait 0.6", "type #name hello", "wait 0.3", "click #go", "wait 1.2"]}}],
+                            "actions": ["wait 0.6", "type #name hello", "wait 0.3", "click #go", "wait 1.2"]},
+                "provenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test page"}}],
      "lines": ["A page on this computer is recorded with a typed word and a click."]},
     {"kind": "segment", "id": "clip", "title": "A supplied clip", "tagline": "Brought to the film's size",
-     "shots": [{"file": "clip.mp4"}],
+     "shots": [{"file": "clip.mp4", "provenance": {"licence": "CC0-1.0", "credit": "Showrig synthetic test fixture"}}],
      "lines": ["A supplied clip joins the edit."]}
   ]
 }

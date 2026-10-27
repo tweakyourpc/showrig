@@ -13,13 +13,14 @@ from .project import Film, film_lock
 STAGES = ["footage", "voice", "plan", "titles", "stage", "music", "assemble", "render"]
 
 
-def make(film: Film, until: str, draft: bool, progress=None) -> None:
+def make(film: Film, until: str, draft: bool, progress=None, fresh: bool = False, restore: tuple = ()) -> None:
     """Build a film under an exclusive lock, optionally reporting stage boundaries."""
     with film_lock(film.root):
-        _make(film, until, draft, progress or (lambda stage: None))
+        _make(film, until, draft, progress or (lambda stage: None), fresh, tuple(restore))
 
 
-def _make(film: Film, until: str, draft: bool, progress) -> None:
+def _make(film: Film, until: str, draft: bool, progress, fresh: bool = False, restore: tuple = ()) -> None:
+    from . import manifest, reconcile, sources
     from . import plan as planner
     from .stages import assemble, footage, music, stage3d, titles, voice
 
@@ -41,6 +42,10 @@ def _make(film: Film, until: str, draft: bool, progress) -> None:
         mark(stage)
         report(stage)
     print(f"{film.board['title']}: {film.fmt['width']}x{film.fmt['height']} at {film.fmt['fps']} fps")
+    sources.gate(film, final=until == "render" and not draft)  # before any work, so a blocked film costs nothing
+    prev = manifest.load(film)
+    if fresh and prev and any(b.get("lock") for b in prev["beats"]):
+        raise SystemExit("--fresh would discard locked beats; unlock them first (showrig unlock FILM ID)")
     progress("footage")
     footage.build(film)
     if stop < 1:
@@ -67,11 +72,18 @@ def _make(film: Film, until: str, draft: bool, progress) -> None:
     if stop < 6:
         return
     progress("assemble")
-    assemble.build(film, plan, score)
+    if not fresh and reconcile.needed(film):  # the project holds a person's edits or locks: keep them
+        reconcile.run(film, plan, score, restore)
+    else:
+        built = assemble.build(film, plan, score)
+        manifest.write(film, plan, built["beats"], built["filmcraft"], assemble.PROMISE, deleted=[])
+    sources.write_lock(film)
     if stop < 7:
         return
     progress("render")
     assemble.render(film)
+    from . import qc
+    qc.run(film)
     mark(None)
     (film.work / "last-build.json").write_text(json.dumps(
         {"seconds": round(time.time() - t0, 2), "draft": draft,
@@ -139,6 +151,32 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("dir", type=Path)
     s.add_argument("--until", choices=STAGES, default="render", help="stop after this stage")
     s.add_argument("--draft", action="store_true", help="fast Blender renders for a first look")
+    s.add_argument("--fresh", action="store_true",
+                   help="rebuild the project from scratch, discarding hand edits (the old project goes to out/versions/)")
+    s.add_argument("--restore", action="append", default=[], metavar="ID",
+                   help="bring back a beat deleted by hand (repeatable)")
+
+    s = sub.add_parser("sources", help="list every source and its licence; record a licence with 'set'")
+    s.add_argument("dir", type=Path)
+    s.add_argument("action", nargs="?", choices=["set"])
+    s.add_argument("ref", nargs="?", help="the source's ref from the list, e.g. clip/shot1, intro/image, music")
+    s.add_argument("--licence", help="e.g. CC-BY-4.0, CC0-1.0, own work, licensed from Pond5 #123")
+    s.add_argument("--credit", help="attribution text, when the licence asks for one")
+    s.add_argument("--url", help="where it came from")
+
+    for name, text in (("lock", "freeze a beat or a whole scene: later builds never change it"),
+                       ("unlock", "hand a locked or hand-edited beat back to Showrig")):
+        s = sub.add_parser(name, help=text)
+        s.add_argument("dir", type=Path)
+        s.add_argument("target", help="a beat id (clip/shot1) or a scene id (clip)")
+
+    s = sub.add_parser("diff", help="what changed in the FilmCraft project since Showrig built it")
+    s.add_argument("dir", type=Path)
+    s.add_argument("--json", action="store_true", help="print the report as JSON (also written to out/diff.json)")
+
+    s = sub.add_parser("qc", help="re-transcribe the final film and check every narration line is heard; measure its style")
+    s.add_argument("dir", type=Path)
+    s.add_argument("--video", type=Path, help="check this file instead of out/<name>.mp4")
 
     s = sub.add_parser("render", help="export the FilmCraft project again, after editing it by hand")
     s.add_argument("dir", type=Path)
@@ -198,7 +236,28 @@ def main(argv: list[str] | None = None) -> None:
         print(f"storyboard ok: {len(film.board['scenes'])} scenes; {film.root / 'STORYBOARD.md'}")
     elif a.cmd == "make":
         film.board = normalize(film.board)
-        make(film, a.until, a.draft)
+        make(film, a.until, a.draft, fresh=a.fresh, restore=tuple(a.restore))
+    elif a.cmd == "sources":
+        from . import sources
+        film.board = normalize(film.board)
+        if a.action == "set":
+            if not (a.ref and a.licence):
+                raise SystemExit("usage: showrig sources FILM set REF --licence NAME [--credit TEXT] [--url URL]")
+            sources.set_licence(film, a.ref, a.licence, a.credit, a.url)
+            print(f"{a.ref}: {a.licence}")
+        raise SystemExit(sources.show(film))
+    elif a.cmd in ("lock", "unlock"):
+        from .reconcile import lock
+        film.board = normalize(film.board)
+        raise SystemExit(lock(film, a.target, a.cmd == "lock"))
+    elif a.cmd == "qc":
+        from .qc import run as qc_run
+        film.board = normalize(film.board)
+        report = qc_run(film, a.video.resolve() if a.video else None, gate=False)
+        raise SystemExit(0 if report["speech"]["ok"] and report["style"]["ok"] else 1)
+    elif a.cmd == "diff":
+        from .diff import show
+        raise SystemExit(show(film, a.json))
     elif a.cmd == "render":
         from .stages.assemble import render
         render(film, a.out.resolve() if a.out else None)
