@@ -20,7 +20,40 @@ TEMPLATES = [
      "prompts": ["What is new?", "Why does it matter?", "When, where, or what next?"]},
     {"id": "explainer", "name": "Quick explainer", "description": "Turn a small idea into a clear visual story.",
      "prompts": ["Introduce the idea", "Explain the key point", "Leave one useful takeaway"]},
+    {"id": "tutorial", "name": "Step-by-step tutorial", "category": "Teach", "icon": "01",
+     "description": "A clear introduction, three steps, and a useful recap.",
+     "prompts": ["What will people learn?", "Show the first step", "Walk through the next step", "Show the result", "Recap and next steps"]},
+    {"id": "comparison", "name": "Before & after", "category": "Show", "icon": "↔",
+     "description": "Set the context, show what changed, and explain the difference.", "look": "cinematic",
+     "prompts": ["Set the context", "Show the before", "Reveal the after", "What made the difference?"]},
+    {"id": "case-study", "name": "Project case study", "category": "Show", "icon": "↗",
+     "description": "Tell the story of a challenge, your process, and the outcome.",
+     "prompts": ["Introduce the project", "Explain the challenge", "Show your approach", "Present the outcome", "What comes next?"]},
+    {"id": "event", "name": "Event invitation", "category": "Announce", "icon": "◎",
+     "description": "Introduce the occasion and make the essential details easy to find.", "look": "ember",
+     "prompts": ["Introduce the event", "Why should people come?", "Share the date and location", "How can people join?"]},
+    {"id": "recap", "name": "Event recap", "category": "Show", "icon": "▦",
+     "description": "Collect the moments, highlights, and people worth remembering.", "look": "cinematic",
+     "prompts": ["Set the scene", "Share a highlight", "Show another moment", "Recognize the people", "Close with a takeaway"]},
+    {"id": "social", "name": "Social short", "category": "Announce", "icon": "▯", "format": "vertical",
+     "description": "A portrait film with a hook, one point, and a clear next step.", "look": "indigo",
+     "prompts": ["Open with a hook", "Make one clear point", "Give a next step"]},
+    {"id": "photo-story", "name": "Photo story", "category": "Personal", "icon": "▧",
+     "description": "Give a collection of pictures a beginning, middle, and ending.", "look": "forest",
+     "prompts": ["Introduce the collection", "Start the story", "Bring out a detail", "Share a favorite moment", "Leave a closing thought"]},
+    {"id": "testimonial", "name": "Interview highlight", "category": "Personal", "icon": "“",
+     "description": "Frame a recorded voice, give it context, and end with a takeaway.",
+     "prompts": ["Introduce the person or subject", "Share the key insight", "Leave a takeaway"]},
+    {"id": "lesson", "name": "Mini lesson", "category": "Teach", "icon": "+",
+     "description": "One question, an explanation, an example, and a summary.",
+     "prompts": ["Ask the question", "Explain the idea", "Show an example", "Summarize what to remember"]},
+    {"id": "blank", "name": "Start from scratch", "category": "Personal", "icon": "□",
+     "description": "One blank scene. Add your own structure as you go.",
+     "prompts": ["What is your opening thought?"]},
 ]
+for _template in TEMPLATES:
+    _template.setdefault("category", "Teach" if _template["id"] == "explainer" else "Announce" if _template["id"] == "trailer" else "Show")
+    _template.setdefault("icon", {"demo": "▶", "showreel": "▦", "trailer": "↗", "explainer": "≡"}.get(_template["id"], "□"))
 LOOKS = [
     {"id": "clean", "name": "Clean", "description": "Quiet typography. Soft colour. Room to breathe.",
      "accent": "#46d9b0", "background": "#111c26", "titles": "rise", "transitions": "simple", "pushIn": 3},
@@ -28,24 +61,51 @@ LOOKS = [
      "accent": "#e9b779", "background": "#14101d", "titles": "rise", "transitions": "cinematic", "pushIn": 5},
     {"id": "terminal", "name": "Terminal", "description": "Monospace lettering with a precise type-on rhythm.",
      "accent": "#a5e88c", "background": "#0b1714", "titles": "typewriter", "transitions": "cuts", "pushIn": 0},
+    {"id": "indigo", "name": "Indigo", "description": "Violet light and crisp typography for a confident introduction.",
+     "accent": "#b9acff", "background": "#19192e", "titles": "rise", "transitions": "simple", "pushIn": 3},
+    {"id": "ember", "name": "Ember", "description": "Warm coral against charcoal. Lively, with a little restraint.",
+     "accent": "#ffa77f", "background": "#291d21", "titles": "rise", "transitions": "cinematic", "pushIn": 4},
+    {"id": "forest", "name": "Forest", "description": "Sage and deep evergreen for photographs and quieter stories.",
+     "accent": "#c5d7a3", "background": "#172820", "titles": "rise", "transitions": "simple", "pushIn": 2},
 ]
+# How the footage is staged. "screens" is the original 3D arc; "fullbleed" needs no Blender at all.
+# A board with stage "auto" (or no stage, as every older board has) behaves exactly as it always did:
+# style.showcase3d decides between the arc and edge-to-edge footage.
+STAGES = [
+    {"id": "screens", "name": "Floating screens", "needsBlender": True, "sample": "00-screens.mp4",
+     "description": "The original stage: footage on screens hanging in an arc, with a glowing rim."},
+    {"id": "fullbleed", "name": "Edge to edge", "needsBlender": False, "sample": "01-fullbleed.mp4",
+     "description": "No stage at all. The footage fills the frame and drifts slowly."},
+    {"id": "desk", "name": "On the desk", "needsBlender": True, "sample": "02-desk.mp4",
+     "description": "A screen lying back under a warm lamp: matte bezel, shallow focus, a real room."},
+    {"id": "paper", "name": "Printed", "needsBlender": True, "sample": "03-paper.mp4",
+     "description": "The capture as a sheet on a pale desk, in daylight. No glow, no spill."},
+    {"id": "orbit", "name": "In the room", "needsBlender": True, "sample": "05-orbit.mp4",
+     "description": "A long lens circling one matte screen in low light. Quiet and deliberate."},
+]
+STAGE_IDS = tuple(stage["id"] for stage in STAGES)
+BLENDER_STAGES = tuple(stage["id"] for stage in STAGES if stage["needsBlender"])
 
 
 def new_board(title: str, template: str) -> dict:
     """Create a usable blank storyboard without inventing the user's content."""
     if template not in {x["id"] for x in TEMPLATES}:
         raise ValueError("Choose a supported template.")
-    look = LOOKS[0]
+    chosen = next(item for item in TEMPLATES if item["id"] == template)
+    look = next(item for item in LOOKS if item["id"] == chosen.get("look", "clean"))
+    dimensions = (1080, 1920) if chosen.get("format") == "vertical" else (1920, 1080)
+    count = len(chosen["prompts"])
     return normalize({
         "title": title.strip() or "Untitled film", "kind": template,
-        "format": {"width": 1920, "height": 1080, "fps": 30},
+        "format": {"width": dimensions[0], "height": dimensions[1], "fps": 30},
         "style": {**{k: look[k] for k in ("accent", "background", "titles", "transitions", "pushIn")},
                   "design": look["id"], "showcase3d": False},
         "timing": "content", "voice": {"source": "none"},
         "music": {"source": "procedural", "mood": "calm", "volumeDb": -12},
-        "scenes": [{"id": "intro", "kind": "intro", "title": title.strip(), "tagline": "", "lines": []},
-                   {"id": "point", "kind": "card", "title": "", "tagline": "", "lines": []},
-                   {"id": "outro", "kind": "outro", "title": "", "tagline": "", "lines": []}],
+        "scenes": [{"id": "intro" if i == 0 else "outro" if i == count - 1 else "point" if i == 1 else f"point-{i}",
+                    "kind": "intro" if i == 0 else "outro" if i == count - 1 else "card",
+                    "title": title.strip() if i == 0 else "", "tagline": "", "lines": []}
+                   for i in range(count)],
     })
 
 
@@ -164,6 +224,7 @@ def validate(data: dict, root: Path, allowed: list[Path], render: bool = False) 
     choice(board["style"]["titles"], "title style", ("rise", "typewriter", "none"))
     choice(board["style"]["transitions"], "transition", ("simple", "cinematic", "cuts"))
     choice(board["style"].get("design", "clean"), "design", tuple(x["id"] for x in LOOKS))
+    choice(board["style"].get("stage", "auto"), "stage", STAGE_IDS + ("auto",))
     choice(board["voice"].get("voice"), "voice", ("af_heart", "af_bella", "am_michael", "bf_emma", "bm_george"))
     number(board["voice"]["speed"], "Speech speed", .5, 2)
     if not isinstance(board["voice"].get("say"), dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in board["voice"]["say"].items()):

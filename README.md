@@ -2,11 +2,12 @@
 
 ![Showrig: storyboard in, editable film out](docs/hero.jpg)
 
-**A director's wizard for short films made entirely on your own machine.**
+**An offline procedural film studio. Make a video in your local browser. Keep the editable FilmCraft project.**
 
-> **Work in progress.** Showrig is early and changing fast: every new film so far has needed something new
-> from it. It works end to end (the [tweakyourpc promo](examples/tweakyourpc-promo) was built with it), but
-> expect rough edges and breaking changes.
+Showrig 0.2 brings a navigable film library, 14 scene-structure templates, six visual looks, recoverable
+film-history cleanup, and a platform-aware Setup & extras page. There are no accounts or hosted
+rendering services. Python and native tools run on your computer; the browser is the control room.
+The [tweakyourpc promo](examples/tweakyourpc-promo) was built with the same procedural pipeline.
 
 Showrig asks the questions a director and producer would answer: what kind of film, what it should
 look like, who speaks, what plays underneath. You bring footage, recordings and music, or let Showrig
@@ -36,11 +37,24 @@ pip install -e .
 showrig web
 ```
 
-This opens a local five-step wizard: **Purpose → Look → Story → Sound → Review**.
-Choose a demo, showcase, announcement, or explainer; select a visual treatment; then
+This opens the offline studio with **Film library**, **Templates**, and **Setup & extras** navigation.
+The editor has five steps: **Purpose → Look → Story → Sound → Export**.
+Choose a demo, showcase, announcement, explainer, tutorial, comparison, case study, event invitation,
+event recap, social short, photo story, interview highlight, mini lesson, or blank canvas; then
 write your scenes and optionally add images, video clips, music, or recordings.
 The studio saves your work as you go. Reorder or duplicate scenes, render a half-size
 preview, and export a full-size MP4, editable FilmCraft project, and optional SRT captions.
+Download the editable ZIP to keep imported and generated media with the timeline. Extract the whole
+folder and run its included `PREPARE-EDIT.py` helper before opening the project in FilmCraft; this
+binds packaged media to its new location without changing the original film or your timeline edits.
+
+Search and sort your films, bulk archive finished projects, or move films to Trash. Restore them at
+any time, or explicitly confirm permanent deletion from Trash. This upgrade does not clean up or
+delete any existing film automatically.
+
+Use **Clear** beside **RECENT FILMS** to clear this browser's recent list while keeping all films in
+the library. The cleared list persists across reloads. Opening or creating a film adds it back to
+Recent; simply refreshing the current editor does not. Recent history is stored in this browser.
 
 Text alone is enough to make a film. New films use content-based timing and 1080p at
 30 fps, with 2D titles and procedural music. Portrait and square layouts are available.
@@ -51,9 +65,18 @@ All fonts, interface files, media processing, and music generation are local. Th
 normal workflow needs FFmpeg, ffprobe, FilmCraft, and EffectCraft. Blender is optional
 for landscape 3D scenes. Kokoro speech is optional and is only enabled after a real
 offline synthesis check for the selected voice. Models are never downloaded during
-production; configure a prepared environment with `SHOWRIG_TTS_PYTHON`.
+production; configure a prepared environment with `SHOWRIG_TTS_PYTHON`, or explicitly run
+`showrig setup --install-voices` to prepare an isolated voice environment and models. Preview its
+actions first with `showrig setup --install-voices --dry-run`. These setup downloads are separate
+from creating films. Voice installation and native libraries differ between operating systems.
 
-The launcher obtains its port from `portbroker` and binds to `0.0.0.0`, so another
+See [Local setup and offline distribution](docs/LOCAL-SETUP.md) for Linux/macOS shell launchers,
+Windows PowerShell launchers, optional voices and 3D/capture tools, and preparing platform-specific
+offline prerequisite kits. Browser fonts and procedural title/music assets are bundled; native
+FilmCraft, EffectCraft, FFmpeg and voice binaries/models are not in this source checkout. Windows
+and macOS installation branches still need verification on their actual hosts.
+
+On a host with `portbroker`, the launcher obtains its port from the broker and binds to `0.0.0.0`, so another
 device on your LAN can use the studio. If running under a process manager, or when
 the broker must run separately:
 
@@ -61,6 +84,9 @@ the broker must run separately:
 PORT=$(portbroker get --name showrig || portbroker alloc --name showrig)
 showrig web --port "$PORT" --no-open
 ```
+
+Standalone machines without portbroker use an OS-assigned free port, retained as a bound socket.
+The launcher prints and opens the actual URL rather than assuming a default port.
 
 Use `showrig web --projects /path/to/films` for a different film library. Existing
 films in that folder appear automatically. Media outside the library or its sibling
@@ -195,7 +221,7 @@ Tools are found on `PATH` and in `~/Work/ArtCraft`. Override with `FILMCRAFT_CLI
 
 ## Status
 
-0.1, a working prototype. Known limits:
+0.2, a local studio with native renderers. Known limits:
 
 - The 3D showcase is framed for landscape films.
 - EffectCraft does not render text-animator range selectors yet, so titles animate whole lines
@@ -229,6 +255,11 @@ requests, and saves desktop/mobile screenshots in `/tmp/showrig-browser-check`.
 It requires locally installed Playwright and Chromium. Set `SHOWRIG_PLAYWRIGHT` if the
 package is outside the global npm directory. The browser checks need an execution
 environment that permits Chromium and local network connections.
+
+`scripts/studio-check.mjs` checks the new navigation, all 14 templates, library cleanup, host-platform
+setup instructions and mobile layouts. It requires an explicit `SHOWRIG_TEST_URL` pointing to an
+isolated QA library and removes only the synthetic films it creates. Both browser checks block
+outside-origin requests. Use a separate broker reservation when another Showrig instance is running.
 
 ## Checking a machine
 

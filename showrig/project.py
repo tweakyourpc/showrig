@@ -13,10 +13,11 @@ import hashlib
 import json
 import re
 import subprocess
-import fcntl
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+
+from .platforms import acquire_lock, release_lock
 
 SCHEMA = 1
 
@@ -46,13 +47,13 @@ def film_lock(root: Path):
     root.mkdir(parents=True, exist_ok=True)
     with (root / ".render.lock").open("a") as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquire_lock(lock)
         except BlockingIOError:
             raise SystemExit("This film is already rendering. Wait for it or cancel that render.")
         try:
             yield
         finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
+            release_lock(lock)
 
 
 @dataclass

@@ -91,7 +91,16 @@ def hero(film: Film, scene: dict) -> dict:
 
 
 def build(film: Film, voice: list[dict]) -> dict:
-    three_d = film.style["showcase3d"]
+    # The stage decides what the 3D shots are; "auto" is the old behaviour, showcase3d on or off.
+    look = film.style.get("stage") or "auto"
+    if look == "auto":
+        look = "screens" if film.style["showcase3d"] else "fullbleed"
+    three_d = look != "fullbleed"
+
+    def staged(kind: str) -> str:
+        """Which Blender builder plays this shot: the original cast, or the chosen stage."""
+        return kind if look == "screens" else look
+
     by_scene: dict[str, list[dict]] = {}
     for item in voice:
         by_scene.setdefault(item["scene"], []).append(item)
@@ -134,7 +143,7 @@ def build(film: Film, voice: list[dict]) -> dict:
             dur = round(max(OPEN[kind] if three_d else (3.0 if content_timing else 5.0), speech_end + 0.6 - t, requested_duration), 3)
             source = "stage" if three_d and panels else "backdrop"
             video.append({"kind": source, "scene": sid, "start": t, "in": 0.0, "duration": dur, "push": False})
-            (stage if source == "stage" else backdrops).append({"scene": sid, "shot": kind, "seconds": dur + 0.5})
+            (stage if source == "stage" else backdrops).append({"scene": sid, "shot": staged(kind), "seconds": dur + 0.5})
             title_at = 4.4 if kind == "intro" and source == "stage" else 0.5
             titles.append({"scene": sid, "layout": "center", "start": t + title_at,
                            "duration": dur - title_at if content_timing else min(TITLE[kind], dur - title_at)})
@@ -156,7 +165,7 @@ def build(film: Film, voice: list[dict]) -> dict:
             if three_d and scene in segments:
                 video.append({"kind": "stage", "scene": sid, "start": t, "in": EST_IN, "duration": EST, "push": False})
                 focus = segments.index(scene)
-                stage.append({"scene": sid, "shot": "establishing", "focus": focus, "seconds": EST + EST_IN + 0.5})
+                stage.append({"scene": sid, "shot": staged("establishing"), "focus": focus, "seconds": EST + EST_IN + 0.5})
                 foot_start = t + EST
             titles.append({"scene": sid, "layout": "lower", "start": t + 0.3, "duration": TITLE["segment"]})
             end = max(speech_end + 0.9, foot_start + (3.0 if content_timing else MIN_FOOTAGE), t + requested_duration)

@@ -2,3 +2,7 @@ python3 -m unittest discover -s tests
 python3 -m compileall -q showrig
 node --check showrig/static/app.js
 node --check scripts/browser-check.mjs
+node --check showrig/static/screens.js
+node --check scripts/studio-check.mjs
+node --check scripts/recent-check.mjs
+sh -n scripts/setup.sh scripts/start-showrig.sh

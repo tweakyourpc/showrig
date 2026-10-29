@@ -40,6 +40,7 @@ DEFAULTS = {
         "transitions": "cinematic",  # cinematic | simple | cuts
         "pushIn": 6,                 # percent zoom across each footage shot; 0 for none
         "showcase3d": True,          # Blender stage for intro, establishing shots and outro
+        "stage": "auto",             # auto | screens | fullbleed | desk | paper | orbit (see studio.STAGES)
         "quality": "final",          # final | draft (Blender at half size, fewer samples)
         "titleHold": None,           # seconds a segment's lower third stays up; None for the whole scene
     },
@@ -97,6 +98,15 @@ def normalize(answers: dict, draft: bool = False) -> dict:
         if not draft and board["voice"]["source"] == "files" and scene["lines"]:
             if len(scene.get("voice", [])) != len(scene["lines"]):
                 problems.append(f"{sid}: voice source is files, so give one voice file per line")
+    from .studio import STAGE_IDS  # deferred: studio imports this module for normalize
+    stage = board["style"].get("stage") or "auto"
+    if stage in STAGE_IDS:
+        board["style"]["stage"] = stage
+        board["style"]["showcase3d"] = stage != "fullbleed"
+    elif stage == "auto":
+        board["style"]["stage"] = "auto"
+    else:
+        problems.append(f"stage must be auto or one of: {', '.join(STAGE_IDS)}")
     if board["style"]["showcase3d"] and board["format"]["width"] < board["format"]["height"]:
         problems.append("the 3D showcase is framed for landscape; turn it off for vertical films")
     if problems:

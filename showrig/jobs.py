@@ -1,16 +1,16 @@
 """Persistent render jobs with process-group cancellation and exclusive ownership."""
 from __future__ import annotations
 
-import fcntl
 import json
 import os
-import signal
 import subprocess
 import sys
 import threading
 import time
 import uuid
 from pathlib import Path
+
+from .platforms import acquire_lock, process_exists, process_options, stop_process
 
 
 def write_json(path: Path, data: dict) -> None:
@@ -39,9 +39,7 @@ class Jobs:
             raise FileNotFoundError("Unknown render job.")
         data = json.loads((self.root / f"{job_id}.json").read_text())
         if data["status"] in ("starting", "running") and data.get("pid"):
-            try:
-                os.kill(data["pid"], 0)
-            except ProcessLookupError:
+            if not process_exists(data["pid"]):
                 data.update(status="interrupted", error="The renderer stopped. Your previous export is safe; render again.")
         data["elapsed"] = round((data.get("finished") or time.time()) - data["started"], 1)
         return data
@@ -61,7 +59,7 @@ class Jobs:
                 raise ValueError("A film is already rendering. Wait for it or cancel it first.")
             lock = (self.root / "render.lock").open("a")
             try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquire_lock(lock)
             except BlockingIOError:
                 lock.close()
                 raise ValueError("Another Showrig instance is rendering. Wait for it to finish.")
@@ -75,7 +73,7 @@ class Jobs:
             try:
                 with (self.root / f"{job_id}.log").open("w") as log:
                     process = subprocess.Popen([sys.executable, "-m", "showrig.worker", str(project), str(path), mode],
-                                               stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=True)
+                                               stdout=log, stderr=subprocess.STDOUT, env=env, **process_options())
             except OSError:
                 lock.close()
                 raise
@@ -104,10 +102,7 @@ class Jobs:
             if self.active != job_id or self.process is None:
                 return self.read(job_id)
             self.cancelled = True
-            try:
-                os.killpg(self.process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            stop_process(self.process)
             process = self.process
             threading.Thread(target=self._kill_later, args=(process,), daemon=True).start()
             return {**self.read(job_id), "status": "cancelling"}
@@ -118,10 +113,7 @@ class Jobs:
         try:
             process.wait(timeout=4)
         except subprocess.TimeoutExpired:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            stop_process(process, force=True)
 
     def close(self) -> None:
         """Cancel owned work when the web service shuts down."""

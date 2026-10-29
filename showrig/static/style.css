@@ -7,3 +7,22 @@
 @media(max-width:950px){.workspace{grid-template-columns:1fr}.preview-panel{position:static;max-width:650px;width:100%;order:-1}.preview-tip{display:none}.preview-shell{max-width:650px}.stage{max-height:290px}.stage.portrait{max-height:290px;max-width:164px}.stage.square{max-width:290px}.workspace>.form-panel{max-width:650px;width:100%}.page-heading{margin-bottom:20px}.steps{margin-bottom:25px}.preview-caption{font-size:9px}.look-sample{height:110px}.mini-frame:nth-child(3){display:none}}
 @media(max-width:650px){.sidebar{position:static;width:auto;display:flex;flex-direction:row;align-items:center;justify-content:space-between;padding:16px 20px;border-right:0;border-bottom:1px solid var(--line)}.sidebar .brand{font-size:23px}.sidebar .brand-mark{width:29px;height:32px;font-size:27px}.studio-label,.sidebar nav,.library-heading,.sidebar-bottom{display:none}.new-button{font-size:10px;padding:6px 12px}.new-button span{font-size:17px}.sidebar:after{display:none}main{margin-left:0}.topbar{height:48px;padding:0 20px;font-size:10px}#app{padding:22px 20px}.steps{gap:0;overflow-x:auto;padding-bottom:12px}.step{font-size:9px;padding:8px 3px}.step-number{display:block;margin:0 auto 6px;width:22px;height:22px}.step{text-align:center}h1{font-size:27px}.page-heading{gap:10px}.page-heading .secondary{font-size:10px;padding:8px}.eyebrow{font-size:9px}.duration-pill{font-size:9px;padding:5px 9px}.workspace{gap:24px}.template-card{padding:13px}.template-card strong{font-size:11px}.template-card small{font-size:9px}.look-sample b{font-size:13px}.look-sample{height:95px}.actions{margin-top:25px}.actions button{font-size:11px}.actions .muted{display:none}.welcome h1{font-size:34px}.welcome-art{gap:10px;height:150px}.mini-frame{padding:20px;width:50%}.mini-frame strong{font-size:14px}.mini-frame span{font-size:8px}#notice{padding:12px 20px}.render-buttons{flex-wrap:wrap}.render-buttons button{min-width:130px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important}}
+
+/* Stage vocabulary: the picker plays the six-second proofs, and a proof of your own scene can follow. */
+.stage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 4px}
+.stage-card{display:flex;flex-direction:column;gap:6px;padding:7px;text-align:left;font-size:10px;font-weight:400;border-radius:10px;line-height:1.35}
+.stage-card.selected{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+.stage-card:disabled{opacity:.45}
+.stage-media{position:relative;display:block;aspect-ratio:16/9;border-radius:7px;overflow:hidden;background:#10161b}
+.stage-media video{width:100%;height:100%;object-fit:cover;display:block}
+.stage-play{position:absolute;right:6px;bottom:6px;font-size:9px;color:#fff;background:rgba(0,0,0,.45);border-radius:20px;padding:2px 6px}
+.stage-blank{display:flex;align-items:center;justify-content:center;height:100%;font-size:22px;color:#7f8b93;background:linear-gradient(140deg,#1b242c,#0d1216)}
+.stage-name{font-weight:700;font-size:11px}
+.stage-card small{color:var(--muted);font-size:9.5px}
+.proof{margin:14px 0 22px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--pale)}
+.proof-head{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.proof-head strong{font-size:12px}
+.proof-body:empty{display:none}
+.proof-body progress{width:100%;height:4px}
+.proof-video{width:100%;border-radius:8px;display:block;margin-top:6px;background:#000}
+.proof button{margin-top:6px}

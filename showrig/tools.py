@@ -8,6 +8,10 @@ import subprocess
 from functools import cache
 from pathlib import Path
 
+from . import runtime
+
+runtime.activate()
+
 ASSETS = Path(__file__).parent / "assets"
 ARTCRAFT = Path(os.getenv("ARTCRAFT_HOME", Path.home() / "Work/ArtCraft"))
 
@@ -17,6 +21,8 @@ def _first(*candidates: str | Path | None) -> str | None:
         if not c:
             continue
         found = shutil.which(str(c)) if os.sep not in str(c) else (str(c) if Path(c).is_file() else None)
+        if not found and os.name == "nt" and Path(str(c) + ".exe").is_file():
+            found = str(c) + ".exe"
         if found:
             return found
     return None
@@ -65,11 +71,14 @@ def playwright() -> str | None:
 @cache
 def tts_python() -> str | None:
     """A Python interpreter that can import kokoro (SHOWRIG_TTS_PYTHON, or this one)."""
-    for py in (os.getenv("SHOWRIG_TTS_PYTHON"), shutil.which("python3"), str(Path.home() / "venvs/kokoro/bin/python")):
+    for py in (os.getenv("SHOWRIG_TTS_PYTHON"), str(runtime.python_path()), shutil.which("python3"),
+               str(Path.home() / "venvs/kokoro/bin/python")):
         if not py or not Path(py).exists():
             continue
         try:
             if subprocess.run([py, "-c", "import kokoro"], capture_output=True, timeout=30).returncode == 0:
+                if py == str(runtime.python_path()):
+                    os.environ.setdefault("HF_HOME", str(runtime.root() / "models"))
                 return py
         except (OSError, subprocess.SubprocessError):
             pass

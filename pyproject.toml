@@ -1,7 +1,7 @@
 [project]
 name = "showrig"
-version = "0.1.0"
-description = "A director's wizard that turns your answers and media into a finished film, offline, with Blender and the ArtCraft suite."
+version = "0.2.0"
+description = "An offline procedural film studio: editable FilmCraft timelines and local video exports, controlled from your browser."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

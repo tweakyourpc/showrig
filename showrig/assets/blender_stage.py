@@ -1,8 +1,12 @@
-"""Showrig's Blender stage: footage playing on floating, glowing screens over a reflective floor.
+"""Showrig's Blender stage: footage playing on screens, staged several ways.
 
 blender -b -P blender_stage.py -- <job.json> <frames_dir>
-  job: {shot: intro|outro|establishing, focus, seconds, fps, width, height, quality,
+  job: {shot, focus, seconds, fps, width, height, quality,
         background, panels: [{video, color, offset}], blend?, movie?}
+  shot: intro|outro|establishing  the arc, the wall, the angled screen (the original three)
+        desk                     the screen lying back on a working desk, warm lamp, shallow focus
+        paper                    the capture as a printed sheet on a pale desk, soft shadow, no glow
+        orbit                    a long-lens arc around one matte screen, soft key light
   blend: also save the scene there. movie: render straight to this H.264 MP4 instead of PNG frames.
 """
 from __future__ import annotations
@@ -89,7 +93,7 @@ def rounded_rect(name: str, w: float, h: float, r: float, segments: int = 10) ->
     return obj
 
 
-def screen_material(p: dict) -> bpy.types.Material:
+def screen_material(p: dict, mode: str = "emit") -> bpy.types.Material:
     mat = bpy.data.materials.new(f"Screen {Path(p['video']).stem}")
     mat.use_nodes = True
     nt = mat.node_tree
@@ -105,10 +109,35 @@ def screen_material(p: dict) -> bpy.types.Material:
     user.frame_offset = round(p.get("offset", 0) * FPS)
     user.use_auto_refresh = True
     user.use_cyclic = True
+    if mode == "print":
+        # A lit sheet: mostly diffuse paper with a little self-light so the ink stays crisp.
+        lit = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        lit.inputs["Roughness"].default_value = 0.85
+        emit = nt.nodes.new("ShaderNodeEmission")
+        emit.inputs["Strength"].default_value = 0.5
+        mix = nt.nodes.new("ShaderNodeMixShader")
+        mix.inputs[0].default_value = 0.25
+        nt.links.new(tex.outputs["Color"], lit.inputs["Base Color"])
+        nt.links.new(tex.outputs["Color"], emit.inputs["Color"])
+        nt.links.new(lit.outputs[0], mix.inputs[1])
+        nt.links.new(emit.outputs[0], mix.inputs[2])
+        nt.links.new(mix.outputs[0], out.inputs["Surface"])
+        return mat
     emit = nt.nodes.new("ShaderNodeEmission")
     emit.inputs["Strength"].default_value = 1.0
     nt.links.new(tex.outputs["Color"], emit.inputs["Color"])
     nt.links.new(emit.outputs[0], out.inputs["Surface"])
+    return mat
+
+
+def matte(name: str, color: str, roughness: float = 0.5, metallic: float = 0.0) -> bpy.types.Material:
+    """A plain shaded material: what a bezel, a desk or a sheet of paper is made of."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    p = mat.node_tree.nodes["Principled BSDF"]
+    p.inputs["Base Color"].default_value = (*hex_rgb(color), 1)
+    p.inputs["Roughness"].default_value = roughness
+    p.inputs["Metallic"].default_value = metallic
     return mat
 
 
@@ -125,17 +154,33 @@ def emissive(name: str, color: str, strength: float) -> bpy.types.Material:
     return mat
 
 
-def panel(p: dict, loc, rot_z_deg: float, scale: float = 1.0):
-    """A screen with a glowing rim and coloured light spill; returns the parent empty."""
+def panel(p: dict, loc, rot_z_deg: float, scale: float = 1.0, rot_x: float = 0.0,
+          style: str = "glow"):
+    """A screen; returns the parent empty.
+
+    style "glow" is the original treatment (emissive rim, coloured spill light); "matte" is a
+    dark bezel lit by the scene; "print" is the capture on a pale sheet, for the paper stage."""
     name = Path(p["video"]).stem
     root = bpy.data.objects.new(f"Panel {name}", None)
     bpy.context.collection.objects.link(root)
     root.location = loc
-    root.rotation_euler = (0, 0, math.radians(rot_z_deg))
+    root.rotation_euler = (math.radians(rot_x), 0, math.radians(rot_z_deg))
     root.scale = (scale, scale, scale)
     scr = rounded_rect(f"Screen {name}", PANEL_W, PANEL_H, RADIUS)
-    scr.data.materials.append(screen_material(p))
+    scr.data.materials.append(screen_material(p, mode="print" if style == "print" else "emit"))
     scr.parent = root
+    if style != "glow":
+        bez = rounded_rect(f"Bezel {name}", PANEL_W + 0.06, PANEL_H + 0.06, RADIUS + 0.03)
+        bez.data.materials.append(matte(f"Bezel {name}", "#f6f2ea" if style == "print" else "#a8adb3",
+                                        roughness=0.9 if style == "print" else 0.38))
+        bez.parent = root
+        bez.location = (0, 0.012, 0)
+        back = rounded_rect(f"Back {name}", PANEL_W + 0.08, PANEL_H + 0.08, RADIUS + 0.04)
+        back.data.materials.append(matte(f"Back {name}", "#efe9dd" if style == "print" else "#2a2e33",
+                                         roughness=0.95 if style == "print" else 0.6))
+        back.parent = root
+        back.location = (0, 0.03, 0)
+        return root
     rim = rounded_rect(f"Rim {name}", PANEL_W + 0.05, PANEL_H + 0.05, RADIUS + 0.025)
     rim.data.materials.append(emissive(f"Rim {name}", p["color"], 3.5))
     rim.parent = root
@@ -156,16 +201,67 @@ def panel(p: dict, loc, rot_z_deg: float, scale: float = 1.0):
     return root
 
 
-def floor() -> None:
-    bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0, 0))
+def floor(z: float = 0.0, color: str | None = None, roughness: float = 0.12,
+          metallic: float = 0.4) -> bpy.types.Object:
+    bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0, z))
     obj = bpy.context.object
+    obj.name = "Floor"
     mat = bpy.data.materials.new("Floor")
     mat.use_nodes = True
     p = mat.node_tree.nodes["Principled BSDF"]
-    p.inputs["Base Color"].default_value = (0.006, 0.008, 0.012, 1)
-    p.inputs["Roughness"].default_value = 0.12
-    p.inputs["Metallic"].default_value = 0.4
+    p.inputs["Base Color"].default_value = (0.006, 0.008, 0.012, 1) if color is None else (*hex_rgb(color), 1)
+    p.inputs["Roughness"].default_value = roughness
+    p.inputs["Metallic"].default_value = metallic
     obj.data.materials.append(mat)
+    return obj
+
+
+def surface(name: str, color: str, roughness: float = 0.8, metallic: float = 0.0,
+            z: float = 0.0) -> bpy.types.Object:
+    """A big plane with a plain material: a desk, a table, a studio floor."""
+    obj = floor(z=z, color=color, roughness=roughness, metallic=metallic)
+    obj.name, obj.data.materials[0].name = name, name
+    return obj
+
+
+def area_light(name: str, color: str, energy: float, size: float, loc, at) -> bpy.types.Object:
+    """A soft area light aimed at a point."""
+    light = bpy.data.lights.new(name, "AREA")
+    light.color = hex_rgb(color)
+    light.energy = energy
+    light.size = size
+    obj = bpy.data.objects.new(name, light)
+    bpy.context.collection.objects.link(obj)
+    obj.location = loc
+    obj.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat("-Z", "Y").to_euler()
+    return obj
+
+
+def wall(name: str, color: str, y: float, roughness: float = 0.9) -> bpy.types.Object:
+    """A vertical plane behind the subject: the back of the room, not a void."""
+    bpy.ops.mesh.primitive_plane_add(size=200, location=(0, y, 0),
+                                     rotation=(math.radians(90), 0, 0))
+    obj = bpy.context.object
+    obj.data.materials.append(matte(name, color, roughness=roughness))
+    obj.name, obj.data.materials[0].name = name, name
+    return obj
+
+
+def prop_cube(name: str, color: str, half, loc) -> bpy.types.Object:
+    bpy.ops.mesh.primitive_cube_add(size=2, location=loc)
+    obj = bpy.context.object
+    obj.name = name
+    obj.scale = half
+    obj.data.materials.append(matte(name, color, roughness=0.7))
+    return obj
+
+
+def prop_cylinder(name: str, color: str, radius: float, depth: float, loc) -> bpy.types.Object:
+    bpy.ops.mesh.primitive_cylinder_add(radius=radius, depth=depth, location=loc)
+    obj = bpy.context.object
+    obj.name = name
+    obj.data.materials.append(matte(name, color, roughness=0.55))
+    return obj
 
 
 def camera(lens: float = 35, fstop: float = 2.2) -> tuple[bpy.types.Object, bpy.types.Object]:
@@ -206,7 +302,8 @@ def smooth_all() -> None:
                 kp.handle_left_type = kp.handle_right_type = "AUTO_CLAMPED"
 
 
-def compositor(scene: bpy.types.Scene) -> None:
+def compositor(scene: bpy.types.Scene, bloom: float = 0.6, vignette: float = 0.55,
+               threshold: float = 0.9) -> None:
     """Bloom on the rims and a soft vignette (written for both the 4.x and 5.x compositors)."""
     scene.use_nodes = True
     if hasattr(scene.render, "compositor_device"):  # 4.2+: composite on the GPU, not the CPU
@@ -221,13 +318,13 @@ def compositor(scene: bpy.types.Scene) -> None:
     rl = nodes.new("CompositorNodeRLayers")
     glare = nodes.new("CompositorNodeGlare")
     for attr, value in (("glare_type", "BLOOM"), ("quality", "HIGH"), ("size", 7), ("mix", 0.0),
-                        ("threshold", 0.9)):
+                        ("threshold", threshold)):
         if hasattr(glare, attr):
             try:
                 setattr(glare, attr, value)
             except (TypeError, ValueError):
                 pass
-    for name, value in (("Type", "Bloom"), ("Threshold", 0.9), ("Strength", 0.6), ("Size", 0.7), ("Quality", "High")):
+    for name, value in (("Type", "Bloom"), ("Threshold", threshold), ("Strength", bloom), ("Size", 0.7), ("Quality", "High")):
         if name in glare.inputs:
             try:
                 glare.inputs[name].default_value = value
@@ -266,7 +363,7 @@ def compositor(scene: bpy.types.Scene) -> None:
         mul = nodes.new("ShaderNodeMix")
         mul.data_type = "RGBA"
         mul.blend_type = "MULTIPLY"
-        mul.inputs[0].default_value = 0.55
+        mul.inputs[0].default_value = vignette
         color_in = [i for i in mul.inputs if i.type == "RGBA"]
         links.new(glare.outputs[0], color_in[0])
         links.new(blur.outputs[0], color_in[1])
@@ -277,7 +374,7 @@ def compositor(scene: bpy.types.Scene) -> None:
     else:
         mul = nodes.new("CompositorNodeMixRGB")
         mul.blend_type = "MULTIPLY"
-        mul.inputs[0].default_value = 0.55
+        mul.inputs[0].default_value = vignette
         links.new(glare.outputs[0], mul.inputs[1])
         links.new(blur.outputs[0], mul.inputs[2])
         links.new(mul.outputs[0], nodes.new("CompositorNodeComposite").inputs[0])
@@ -330,13 +427,81 @@ def build_establishing(end: int) -> None:
     move(cam, tgt, end, (-1.2, -4.6, 1.45), (0.25, 0.0, 1.3))
 
 
+def build_desk(end: int) -> None:
+    """The screen lying back on a working desk: warm lamp, matte bezel, shallow focus."""
+    scene = bpy.context.scene
+    bpy.data.objects.remove(bpy.data.objects["Floor"], do_unlink=True)
+    scene.world.node_tree.nodes["Background"].inputs["Color"].default_value = (*hex_rgb("#2a1d13"), 1)
+    surface("Desk", "#56422f", roughness=0.5, metallic=0.0)
+    p = PANELS[JOB.get("focus", 0)]
+    panel(p, (0, 0.95, 1.02), -4, rot_x=-58, style="matte")
+    stand = prop_cube("Stand", "#14161a", (0.3, 0.22, 0.03), (0, 1.34, 0.62))
+    stand.rotation_euler = (math.radians(-22), 0, 0)
+    area_light("Lamp", "#ffcf9a", 1200, 2.2, (2.2, -1.0, 2.4), (0, 0.9, 1.05))
+    area_light("Fill", "#9db4cf", 55, 3.2, (-2.8, 0.2, 1.4), (0, 0.9, 1.0))
+    area_light("Practical", "#ffb271", 140, 1.0, (-1.3, 2.4, 2.0), (0, 0.9, 1.1))
+    wall("Room", "#231a13", 3.2)
+    area_light("Kick", "#ffc48a", 200, 1.0, (1.8, 2.4, 1.7), (0, 0.9, 1.1))
+    # props close to the lens, deliberately out of focus
+    prop_cylinder("Mug", "#cfc6b6", 0.14, 0.19, (1.05, -1.45, 0.095))
+    prop_cube("Notebook", "#3d4450", (0.3, 0.21, 0.03), (-0.95, -1.6, 0.03))
+    prop_cube("Pen", "#c8a15a", (0.14, 0.012, 0.01), (-0.55, -1.32, 0.012))
+    cam, tgt = camera(lens=38, fstop=1.4)
+    move(cam, tgt, 1, (0.42, -3.2, 2.1), (0, 0.95, 1.12))
+    move(cam, tgt, end, (0.12, -2.85, 1.96), (0, 0.95, 1.16))
+    return {"bloom": 0.18, "vignette": 0.66}
+
+
+def build_paper(end: int) -> None:
+    """The capture as a printed sheet on a pale desk: soft key light, contact shadow, no glow."""
+    scene = bpy.context.scene
+    bpy.data.objects.remove(bpy.data.objects["Floor"], do_unlink=True)
+    bg = scene.world.node_tree.nodes["Background"]
+    bg.inputs["Color"].default_value = (*hex_rgb("#cfc9bd"), 1)
+    bg.inputs["Strength"].default_value = 0.5
+    surface("Table", "#d8d2c6", roughness=0.88)
+    p = PANELS[JOB.get("focus", 0)]
+    under = rounded_rect("Sheet under", PANEL_W * 0.82 + 0.12, PANEL_H * 0.82 + 0.12, 0.01)
+    under.data.materials.append(matte("Paper", "#efe9dd", roughness=0.9))
+    under.location, under.rotation_euler = (0.08, 0.03, 0.004), (math.radians(-90), 0, math.radians(7))
+    panel(p, (0, 0, 0.012), -5, scale=0.82, rot_x=-89, style="print")
+    area_light("Window", "#fff6e8", 130, 3.6, (-2.2, -1.6, 3.1), (0, 0.15, 0))
+    area_light("Bounce", "#ffffff", 25, 4.0, (2.4, 1.2, 1.6), (0, 0, 0))
+    cam, tgt = camera(lens=30, fstop=2.4)
+    move(cam, tgt, 1, (0.3, -2.4, 2.4), (0, 0.12, 0.02))
+    move(cam, tgt, end, (-0.14, -2.2, 2.26), (0, 0.16, 0.02))
+    return {"bloom": 0.02, "vignette": 0.92}
+
+
+def build_orbit(end: int) -> None:
+    """A long-lens arc around one matte screen: one soft key light, no rim glow."""
+    scene = bpy.context.scene
+    bpy.data.objects.remove(bpy.data.objects["Floor"], do_unlink=True)
+    scene.world.node_tree.nodes["Background"].inputs["Color"].default_value = (*hex_rgb("#0b0e12"), 1)
+    surface("Ground", "#151a1f", roughness=0.34, metallic=0.08)
+    p = PANELS[JOB.get("focus", 0)]
+    panel(p, (0, 0, 1.35), -14, rot_x=-5, style="matte")
+    area_light("Key", "#e6eef5", 600, 4.4, (2.0, -3.2, 3.6), (0, 0, 1.4))
+    area_light("Fill", "#8aa4c0", 45, 3.4, (-3.0, -1.4, 1.2), (0, 0, 1.3))
+    area_light("Kicker", "#cfd9e2", 260, 1.1, (-0.4, 2.6, 2.9), (0, 0, 1.45))
+    wall("Room", "#14181d", 4.2)
+    cam, tgt = camera(lens=65, fstop=2.5)
+    r = 6.4
+    for frame, a, h in ((1, -34, 1.42), (round(end * 0.5), 2, 1.52), (end, 26, 1.34)):
+        rad = math.radians(a)
+        move(cam, tgt, frame, (r * math.sin(rad), -r * math.cos(rad), h), (0, 0, 1.36))
+    return {"bloom": 0.22, "vignette": 0.6}
+
+
 def main() -> None:
     scene = reset()
     scene.frame_start, scene.frame_end = 1, round(JOB["seconds"] * FPS)
     floor()
-    {"intro": build_intro, "outro": build_outro, "establishing": build_establishing}[JOB["shot"]](scene.frame_end)
+    build = {"intro": build_intro, "outro": build_outro, "establishing": build_establishing,
+             "desk": build_desk, "paper": build_paper, "orbit": build_orbit}[JOB["shot"]]
+    look = build(scene.frame_end) or {}
     smooth_all()
-    compositor(scene)
+    compositor(scene, **look)
     OUT.mkdir(parents=True, exist_ok=True)
     scene.render.filepath = str(OUT / "f_")
     if JOB.get("movie"):

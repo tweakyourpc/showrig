@@ -4,29 +4,39 @@ from __future__ import annotations
 import json
 import os
 import re
+import copy
 import shutil
 import socket
 import subprocess
+import tempfile
 import time
 import uuid
 import webbrowser
-from contextlib import asynccontextmanager
+import threading
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
-from . import __version__, tools
+from . import __version__, library, runtime, tools
+from .platforms import acquire_lock, release_lock
 from .board import markdown
 from .jobs import Jobs, write_json
 from .project import film_lock, probe, slug
-from .studio import LOOKS, TEMPLATES, estimate, media_references, new_board, resolve_media, validate
+from .studio import LOOKS, STAGES, TEMPLATES, estimate, media_references, new_board, resolve_media, validate
 
 STATIC = Path(__file__).parent / "static"
 MEDIA_TYPES = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".mkv", ".webm", ".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 UPLOAD_LIMIT = 1024 * 1024 * 1024
+PACKAGE_LIMIT = 4 * 1024 * 1024 * 1024
+# The six-second samples in the stage picker, recorded from the same clip so only the stage differs.
+SAMPLES = Path(os.environ.get("SHOWRIG_PROOFS") or "/home/chris/Videos/showrig-proofs/stage-vocabulary-20261029")
+STAGE_SAMPLES = {stage["id"]: stage["sample"] for stage in STAGES if stage.get("sample")}
+PROOF_DIR = ".proofs"
 
 
 def app_from_environment() -> FastAPI:
@@ -43,7 +53,9 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
     projects.mkdir(parents=True, exist_ok=True)
     jobs = Jobs(projects)
     allowed = [projects, projects.parent / "examples"]
+    proofs = projects / PROOF_DIR
     speech = {}
+    library_guard = threading.RLock()
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     @asynccontextmanager
@@ -61,7 +73,7 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
             origin = request.headers.get("origin")
             if request.headers.get("x-showrig-request") != "1" or (origin and urlparse(origin).netloc != request.headers.get("host")):
                 return JSONResponse({"detail": "Open the wizard on this Showrig server to make changes."}, status_code=403)
-            limit = UPLOAD_LIMIT + 1024 * 1024 if request.url.path.endswith("/assets") else 2 * 1024 * 1024
+            limit = UPLOAD_LIMIT + 1024 * 1024 if request.url.path.endswith("/assets") else PACKAGE_LIMIT if request.url.path.endswith("/library/import") else 2 * 1024 * 1024
             if int(request.headers.get("content-length", "0")) > limit:
                 return JSONResponse({"detail": "This upload is too large."}, status_code=413)
         response = await call_next(request)
@@ -87,6 +99,19 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
         if jobs.active and jobs.read(jobs.active)["project"] == root.name:
             raise HTTPException(409, "This film is rendering. Cancel the render before editing it.")
 
+    @contextmanager
+    def cleanup_guard():
+        """Keep library cleanup separate from any browser worker, including proofs."""
+        with library_guard, (jobs.root / "render.lock").open("a") as lock:
+            try:
+                acquire_lock(lock)
+            except BlockingIOError:
+                raise HTTPException(409, "A film is rendering. Wait for it to finish before cleaning up the library.")
+            try:
+                yield
+            finally:
+                release_lock(lock)
+
     def result_manifest(root: Path, mode: str) -> dict | None:
         manifest = root / "out" / f"{mode}.json"
         if manifest.is_file():
@@ -99,6 +124,29 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
                 return {"mode": mode, "files": paths, "title": board["title"], "legacy": True}
         return None
 
+    def proof_path(proof_id: str) -> Path:
+        if not re.fullmatch(r"proof-[0-9a-f]{8}", proof_id):
+            raise HTTPException(404, "Unknown proof.")
+        path = (proofs / proof_id).resolve()
+        if not path.is_relative_to(proofs.resolve()) or not (path / "showrig.json").is_file():
+            raise HTTPException(404, "Unknown proof.")
+        return path
+
+    def prune_proofs(keep: Path, limit: int = 10) -> None:
+        """A proof is scratch, not a film: keep the newest few and the one just started."""
+        if not proofs.is_dir():
+            return
+        superseded = sorted((p for p in proofs.glob("proof-*") if p.is_dir() and p != keep),
+                            key=lambda p: p.stat().st_mtime, reverse=True)
+        for old in superseded[max(0, limit - 1):]:
+            shutil.rmtree(old, ignore_errors=True)
+
+    def proof_size(fmt: dict) -> dict:
+        """A draft proof renders at half size, so double the film's frame to land on a real one."""
+        factor = 3840 / max(fmt["width"], fmt["height"])
+        return {"width": int(fmt["width"] * factor) // 2 * 2,
+                "height": int(fmt["height"] * factor) // 2 * 2, "fps": 30}
+
     @app.get("/whoami")
     def whoami():
         return {"service": "showrig", "version": __version__, "pid": os.getpid(),
@@ -106,10 +154,24 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
 
     @app.get("/api/catalog")
     def catalog():
-        return {"templates": TEMPLATES, "looks": LOOKS}
+        stages = [{**stage, "sample": stage.get("sample") if (SAMPLES / (stage.get("sample") or "")).is_file() else None}
+                  for stage in STAGES]
+        return {"templates": TEMPLATES, "looks": LOOKS, "stages": stages}
+
+    @app.get("/samples/{stage_id}.mp4")
+    def stage_sample(stage_id: str):
+        """The six-second proof of a stage, filmed from one clip so only the staging changes."""
+        name = STAGE_SAMPLES.get(stage_id)
+        path = (SAMPLES / name).resolve() if name else None
+        if not path or not path.is_relative_to(SAMPLES.resolve()) or not path.is_file():
+            raise HTTPException(404, "No sample has been recorded for this stage.")
+        return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "public, max-age=3600"})
 
     @app.get("/api/capabilities")
     def capabilities():
+        runtime.activate()
+        for finder in (tools.filmcraft, tools.effectcraft, tools.blender, tools.node, tools.tts_python):
+            finder.cache_clear()
         checks = [("ffmpeg", shutil.which("ffmpeg")), ("ffprobe", shutil.which("ffprobe")),
                   ("FilmCraft", tools.filmcraft()), ("EffectCraft", tools.effectcraft())]
         missing = []
@@ -123,11 +185,16 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
         return {"ready": not missing, "missing": missing, "blender": bool(tools.blender()),
                 "speech": speech, "offline": True, "activeJob": jobs.read(jobs.active) if jobs.active else None}
 
+    @app.get("/api/setup")
+    def setup():
+        return runtime.setup_catalog()
+
     @app.post("/api/speech/check")
     def check_speech(body: dict):
         voice = body.get("voice", "af_heart")
         if voice not in ("af_heart", "af_bella", "am_michael", "bf_emma", "bm_george"):
             raise ValueError("Choose a supported voice.")
+        tools.tts_python.cache_clear()
         py = tools.tts_python()
         result = {"ready": False, "reason": "Kokoro is not installed. Use your own recordings or no narration."}
         if py:
@@ -144,17 +211,69 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
 
     @app.get("/api/projects")
     def list_projects():
-        items = []
-        for path in projects.glob("*/showrig.json"):
-            if not path.resolve().is_relative_to(projects):
-                continue
-            try:
-                board = json.loads(path.read_text())
-                items.append({"id": path.parent.name, "title": board["title"], "kind": board.get("kind", "demo"),
-                              "scenes": len(board["scenes"]), "updated": path.stat().st_mtime})
-            except (OSError, ValueError, KeyError, TypeError):
-                continue
-        return sorted(items, key=lambda item: item["updated"], reverse=True)
+        return library.list_films(projects)
+
+    @app.get("/api/trash")
+    def list_trash():
+        return library.list_films(projects, trash=True)
+
+    @app.post("/api/library/import", status_code=201)
+    async def import_project(file: UploadFile):
+        if Path(file.filename or "").suffix.lower() != ".zip":
+            raise ValueError("Choose a Showrig editable ZIP package.")
+        handle, name = tempfile.mkstemp(prefix="showrig-import-", suffix=".zip", dir=projects.parent)
+        os.close(handle)
+        path = Path(name)
+        total = 0
+        try:
+            with path.open("wb") as target:
+                while chunk := await file.read(1024 * 1024):
+                    total += len(chunk)
+                    if total > PACKAGE_LIMIT:
+                        raise ValueError("The project ZIP is too large.")
+                    target.write(chunk)
+            with cleanup_guard():
+                project_id, board = library.import_package(projects, path)
+            return {"id": project_id, "title": board["title"]}
+        except (OSError, ValueError) as exc:
+            raise ValueError(str(exc)) from exc
+        finally:
+            await file.close()
+            path.unlink(missing_ok=True)
+
+    @app.post("/api/library/actions")
+    def library_action(body: dict):
+        action, ids = body.get("action"), body.get("ids")
+        if action not in ("archive", "unarchive", "trash", "restore") or not isinstance(ids, list) or not 1 <= len(ids) <= 100 or any(not isinstance(item, str) for item in ids):
+            raise ValueError("Choose an action and between 1 and 100 films.")
+        changed, errors = [], []
+        with cleanup_guard():
+            for project_id in dict.fromkeys(ids):
+                try:
+                    library.change(projects, project_id, action)
+                    changed.append(project_id)
+                except (ValueError, OSError, SystemExit) as exc:
+                    errors.append({"id": project_id, "detail": str(exc)})
+        return {"changed": changed, "errors": errors}
+
+    @app.delete("/api/trash/{project_id}")
+    def delete_trashed(project_id: str, body: dict):
+        if body.get("confirm") != project_id:
+            raise ValueError("Confirm the film to permanently delete it from Trash.")
+        with cleanup_guard():
+            library.erase(projects, project_id)
+        return {"deleted": project_id}
+
+    @app.get("/api/projects/{project_id}/package")
+    def editable_package(project_id: str):
+        root = project_path(project_id)
+        editable(root)
+        try:
+            archive = library.package(root)
+        except SystemExit as exc:
+            raise HTTPException(409, str(exc))
+        return FileResponse(archive, media_type="application/zip", filename=f"{root.name}-editable.zip",
+                            background=BackgroundTask(archive.unlink, missing_ok=True))
 
     @app.post("/api/projects", status_code=201)
     def create_project(body: dict):
@@ -287,6 +406,49 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
     def storyboard(project_id: str):
         return FileResponse(project_path(project_id) / "STORYBOARD.md", media_type="text/markdown", filename="STORYBOARD.md")
 
+    @app.post("/api/projects/{project_id}/proof", status_code=202)
+    def start_proof(project_id: str, body: dict):
+        """One scene, in the chosen stage, as a short draft: the design loop before the whole film."""
+        root = project_path(project_id)
+        board = json.loads((root / "showrig.json").read_text())
+        stage = board["style"].get("stage") or "auto"
+        stage = (("screens" if board["style"].get("showcase3d", True) else "fullbleed")
+                 if stage == "auto" else stage)
+        if stage != "fullbleed" and not tools.blender():
+            raise ValueError("Blender is unavailable, so that stage cannot be proved on this computer.")
+        segments = [(i, s) for i, s in enumerate(board["scenes"]) if s.get("kind") == "segment" and s.get("shots")]
+        if not segments:
+            raise ValueError("Add a clip to a scene first: a proof needs footage to stage.")
+        requested = body.get("scene")
+        index, scene = next(((i, s) for i, s in segments if i == requested), segments[0])
+        proof = copy.deepcopy(board)
+        proof["format"] = proof_size(board["format"])
+        proof["style"]["quality"] = "draft"
+        proof["voice"] = {**proof["voice"], "source": "none"}
+        proof["captions"] = {"mode": "none"}
+        proof["music"] = {**proof["music"], "source": "none"}
+        proof["credits"] = {"enabled": False, "lines": []}
+        proof["scenes"] = [{**copy.deepcopy(scene), "lines": [], "showcase": True}]
+        destination = proofs / ("proof-" + uuid.uuid4().hex[:8])
+        destination.mkdir(parents=True)
+        if (root / "assets").is_dir():
+            (destination / "assets").symlink_to(root / "assets", target_is_directory=True)
+        checked = validate(proof, destination, allowed, render=True)
+        write_json(destination / "showrig.json", checked)
+        (destination / "STORYBOARD.md").write_text(markdown(checked))
+        prune_proofs(destination)
+        return {"proof": destination.name, "scene": index, "stage": stage, "job": jobs.start(destination, "preview")}
+
+    @app.get("/api/proofs/{proof_id}/video")
+    def proof_video(proof_id: str):
+        root = proof_path(proof_id)
+        manifest = result_manifest(root, "preview")
+        relative = (manifest or {}).get("files", {}).get("mp4")
+        path = (root / relative).resolve() if relative else None
+        if not path or not path.is_relative_to(root) or not path.is_file():
+            raise HTTPException(404, "This proof is still rendering.")
+        return FileResponse(path, media_type="video/mp4", filename=path.name)
+
     @app.get("/")
     def home():
         return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
@@ -296,16 +458,23 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
 
 
 def serve(projects: Path, host: str, port: int | None, open_browser: bool) -> None:
-    """Reserve a real homelab port and start the local studio."""
+    """Use the host broker, or an OS-assigned bound socket on standalone machines."""
     import uvicorn
+    listener = None
     if port is None:
-        try:
-            result = subprocess.run(["portbroker", "get", "--name", "showrig"], capture_output=True, text=True)
-            if result.returncode:
-                result = subprocess.run(["portbroker", "alloc", "--name", "showrig"], capture_output=True, text=True, check=True)
-            port = int(result.stdout.strip())
-        except (OSError, subprocess.SubprocessError, ValueError) as exc:
-            raise SystemExit(f"Could not obtain a port from portbroker: {exc}. Run `portbroker alloc --name showrig` first.")
+        if shutil.which("portbroker"):
+            try:
+                result = subprocess.run(["portbroker", "get", "--name", "showrig"], capture_output=True, text=True)
+                if result.returncode:
+                    result = subprocess.run(["portbroker", "alloc", "--name", "showrig"], capture_output=True, text=True, check=True)
+                port = int(result.stdout.strip())
+            except (OSError, subprocess.SubprocessError, ValueError) as exc:
+                raise SystemExit(f"Could not obtain a port from portbroker: {exc}. Run `portbroker alloc --name showrig` first.")
+        else:
+            listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            listener.bind((host, 0))
+            listener.listen(2048)
+            port = listener.getsockname()[1]
     if not 1 <= port <= 65535:
         raise SystemExit("Use a valid port reserved through portbroker.")
     address = "127.0.0.1" if host == "0.0.0.0" else host
@@ -320,4 +489,12 @@ def serve(projects: Path, host: str, port: int | None, open_browser: bool) -> No
     if open_browser:
         import threading
         threading.Timer(1.5, lambda: webbrowser.open(f"http://{address}:{port}")).start()
-    uvicorn.run(create_app(projects, host, port), host=host, port=port, log_level="warning")
+    try:
+        app = create_app(projects, host, port)
+        if listener:
+            uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning")).run(sockets=[listener])
+        else:
+            uvicorn.run(app, host=host, port=port, log_level="warning")
+    finally:
+        if listener:
+            listener.close()

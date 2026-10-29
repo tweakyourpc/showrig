@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import io
 import os
 import re
 import subprocess
 import tempfile
 import time
 import unittest
+import zipfile
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -131,6 +133,34 @@ class RenderTests(unittest.TestCase):
         result = self.wait(job, success=False)
         self.assertEqual(result["status"], "cancelled")
         self.wait(self.render(pid))
+
+    def test_04_portable_project_reopens_and_renders_after_relocation(self):
+        from showrig import tools
+        project = self.create("Portable edit verification")
+        pid, board = project["id"], project["board"]
+        board["format"] = {"width": 480, "height": 270, "fps": 30}
+        board["music"]["source"] = "none"
+        board["scenes"] = [{"kind": "card", "id": "card", "title": "Keep the edit", "tagline": "Portable FilmCraft project verification", "lines": []}]
+        self.save(pid, board)
+        result = self.wait(self.render(pid, "final"))
+        response = self.client.get(f"/api/projects/{pid}/package")
+        self.assertEqual(response.status_code, 200, response.text[:100])
+        relocated = self.root / "relocated"
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            self.assertTrue(all(not Path(p).is_absolute() and ".." not in Path(p).parts for p in archive.namelist()))
+            archive.extractall(relocated)
+        root = relocated / pid
+        prepared = subprocess.run([os.sys.executable, str(root / "PREPARE-EDIT.py")], capture_output=True, text=True, timeout=30)
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        edit = root / "out/portable-edit-verification.fcproj"
+        self.assertTrue(edit.is_file())
+        self.assertNotIn(str(self.root / "films" / pid), edit.read_text())
+        reopened = subprocess.run([tools.filmcraft(), "--project", str(edit), "inspect", "sequence"], capture_output=True, text=True, timeout=60)
+        self.assertEqual(reopened.returncode, 0, reopened.stderr)
+        output = root / "relocated-export.mp4"
+        rendered = subprocess.run([tools.filmcraft(), "--project", str(edit), "export", str(output), "--format", "h264"], capture_output=True, text=True, timeout=180)
+        self.assertEqual(rendered.returncode, 0, rendered.stderr[-1000:])
+        self.assertAlmostEqual(probe(output)["duration"], result["output"]["duration"], delta=.25)
 
 
 if __name__ == "__main__":

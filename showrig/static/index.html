@@ -4,33 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f5f1">
-  <title>Showrig · Your small film studio</title>
+  <title>Showrig · Offline film studio</title>
+  <meta name="description" content="An offline procedural film studio. Build editable FilmCraft projects and export video from your local browser.">
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/studio-shell.css">
   <script type="module" src="/static/app.js"></script>
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/" aria-label="Showrig home"><span class="brand-mark" aria-hidden="true">s</span>showrig<span class="brand-dot">.</span></a>
-    <p class="studio-label">YOUR SMALL FILM STUDIO</p>
+    <a class="brand" href="#library" data-action="library" aria-label="Showrig home"><span class="brand-mark" aria-hidden="true">s</span>showrig<span class="brand-dot">.</span></a>
+    <p class="studio-label">YOUR OFFLINE FILM STUDIO</p>
     <button class="new-button" data-action="new"><span aria-hidden="true">＋</span> New film</button>
-    <div class="library-heading"><span>YOUR FILMS</span><button class="icon-button" data-action="library" aria-label="Show film library">↗</button></div>
+    <nav class="primary-nav" aria-label="Main navigation">
+      <button data-action="library" data-nav="library"><span aria-hidden="true">▦</span> Film library <span class="nav-count" id="film-count"></span></button>
+      <button data-action="templates" data-nav="templates"><span aria-hidden="true">◈</span> Templates</button>
+      <button data-action="setup" data-nav="setup"><span aria-hidden="true">⚙</span> Setup & extras <span class="setup-dot" id="setup-dot"></span></button>
+      <button data-action="return-editor" id="nav-editor" hidden><span aria-hidden="true">▤</span> Current film</button>
+    </nav>
+    <div class="library-heading recent-heading"><span>RECENT FILMS</span><button id="clear-recent" class="clear-recent" data-action="clear-recent" aria-label="Clear recent films" title="Clear this browser’s recent list. Your films stay in the library.">Clear</button></div>
     <nav id="library" aria-label="Saved films"></nav>
-    <div class="sidebar-bottom"><span class="status-dot"></span><strong>Made right here.</strong><p>Your files stay on this computer.<br>No connection needed to create.</p><button class="text-button" data-action="setup">Check setup</button></div>
+    <div class="sidebar-bottom"><span class="status-dot"></span><strong>Offline by design</strong><p>Procedural tools. Local files.<br>Editable FilmCraft projects.</p><span class="sidebar-version">SHOWRIG · LOCAL STUDIO</span></div>
   </aside>
   <main>
-    <header class="topbar"><span id="breadcrumb">Studio / Your films</span><span id="save-status" role="status">OFFLINE STUDIO</span></header>
+    <header class="topbar"><span id="breadcrumb">Studio / Your films</span><div class="topbar-status"><span class="offline-pill"><i></i> Local & offline</span><span id="save-status" role="status">OFFLINE STUDIO</span></div></header>
     <div id="notice" role="alert" hidden></div>
     <div id="app"><div class="loading">Opening your studio…</div></div>
   </main>
+  <input type="file" id="import-input" accept=".zip,application/zip" hidden>
   <dialog id="new-dialog">
     <form id="new-form">
       <div class="dialog-top"><span class="eyebrow">A NEW BEGINNING</span><button class="icon-button" type="button" data-action="close-dialog" aria-label="Close">×</button></div>
-      <h2>What are we making?</h2><p class="muted">Give your film a name. You can change everything later.</p>
+      <h2>Make something yours.</h2><p class="muted">Pick a structure, add your words and media, then export a video or an editable FilmCraft project. Everything is made locally.</p>
       <label>Film title<input name="title" id="new-title" maxlength="120" placeholder="A name for your next film" required autocomplete="off"></label>
       <div id="new-templates" class="template-grid"></div>
       <button class="primary wide" type="submit">Create film <span aria-hidden="true">→</span></button>
     </form>
   </dialog>
-  <dialog id="setup-dialog"><div class="dialog-top"><span class="eyebrow">THIS COMPUTER</span><button class="icon-button" data-action="close-setup" aria-label="Close">×</button></div><h2>Ready when you are.</h2><div id="setup-content"></div></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-top"><span class="eyebrow">PERMANENT DELETION</span><button class="icon-button" data-action="close-confirm" aria-label="Cancel deletion">×</button></div><h2 id="confirm-title">Delete from Trash?</h2><p id="confirm-description"></p><p class="hint">This removes the film folder, its imported media, generated work, and exports. This cannot be undone.</p><div class="dialog-actions"><button data-action="close-confirm">Keep in Trash</button><button class="danger-button" data-action="confirm-delete">Delete permanently</button></div></dialog>
 </body>
 </html>

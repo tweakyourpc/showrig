@@ -201,13 +201,24 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--json", action="store_true", help="print the report as JSON")
     s.add_argument("--out", type=Path, help="also write the JSON report here")
 
-    s = sub.add_parser("web", help="open the offline browser wizard")
+    s = sub.add_parser("setup", help="show platform-specific setup or explicitly add optional offline voices")
+    s.add_argument("--install-voices", action="store_true", help="download and install optional voices in an isolated environment")
+    s.add_argument("--dry-run", action="store_true", help="show the voice installation plan without downloading or changing anything")
+
+    s = sub.add_parser("web", help="open the offline browser studio")
     s.add_argument("--projects", type=Path, default=Path("films"))
     s.add_argument("--host", default="0.0.0.0")
     s.add_argument("--port", type=int, help="a port already reserved through portbroker")
     s.add_argument("--no-open", action="store_true", help="do not open a browser automatically")
 
     a = p.parse_args(argv)
+    if a.cmd == "setup":
+        from . import runtime
+        if a.install_voices:
+            runtime.install_voices(a.dry_run)
+        else:
+            print(json.dumps(runtime.setup_catalog(), indent=2))
+        return
     if a.cmd == "web":
         from .web import serve
         serve(a.projects, a.host, a.port, not a.no_open)
