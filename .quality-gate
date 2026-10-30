@@ -6,3 +6,7 @@ node --check showrig/static/screens.js
 node --check scripts/studio-check.mjs
 node --check scripts/recent-check.mjs
 sh -n scripts/setup.sh scripts/start-showrig.sh
+node --check showrig/static/guided.js
+node --check showrig/static/next.js
+node --check scripts/design-figcraft.mjs
+node --check scripts/next-check.mjs

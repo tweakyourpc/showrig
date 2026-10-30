@@ -87,13 +87,16 @@ STAGE_IDS = tuple(stage["id"] for stage in STAGES)
 BLENDER_STAGES = tuple(stage["id"] for stage in STAGES if stage["needsBlender"])
 
 
-def new_board(title: str, template: str) -> dict:
+def new_board(title: str, template: str, templates: list | None = None) -> dict:
     """Create a usable blank storyboard without inventing the user's content."""
-    if template not in {x["id"] for x in TEMPLATES}:
+    templates = templates or TEMPLATES
+    if template not in {x["id"] for x in templates}:
         raise ValueError("Choose a supported template.")
-    chosen = next(item for item in TEMPLATES if item["id"] == template)
+    chosen = next(item for item in templates if item["id"] == template)
     look = next(item for item in LOOKS if item["id"] == chosen.get("look", "clean"))
     dimensions = (1080, 1920) if chosen.get("format") == "vertical" else (1920, 1080)
+    if chosen.get("format") == "square":
+        dimensions = (1080, 1080)
     count = len(chosen["prompts"])
     return normalize({
         "title": title.strip() or "Untitled film", "kind": template,
@@ -104,7 +107,8 @@ def new_board(title: str, template: str) -> dict:
         "music": {"source": "procedural", "mood": "calm", "volumeDb": -12},
         "scenes": [{"id": "intro" if i == 0 else "outro" if i == count - 1 else "point" if i == 1 else f"point-{i}",
                     "kind": "intro" if i == 0 else "outro" if i == count - 1 else "card",
-                    "title": title.strip() if i == 0 else "", "tagline": "", "lines": []}
+                    "title": title.strip() if i == 0 else "", "tagline": "", "lines": [],
+                    "guidance": chosen["prompts"][i]}
                    for i in range(count)],
     })
 
@@ -171,7 +175,7 @@ def validate(data: dict, root: Path, allowed: list[Path], render: bool = False) 
     for scene in data["scenes"]:
         if not isinstance(scene, dict):
             fail("Each scene must be an object.")
-        for key in ("title", "tagline", "subtitle", "note"):
+        for key in ("title", "tagline", "subtitle", "note", "guidance"):
             text(scene.get(key, ""), key, 160 if key == "title" else 600)
         if "id" in scene and (not isinstance(scene["id"], str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", scene["id"])):
             fail("Scene IDs must contain only letters, numbers, underscores, or hyphens.")
@@ -206,15 +210,14 @@ def validate(data: dict, root: Path, allowed: list[Path], render: bool = False) 
                         fail("Offline captures support wait, scroll, type, click, and press.")
         if not isinstance(scene.get("voice", []), list):
             fail("Voice recordings must be a list.")
-        if render and not (scene.get("title", "").strip() or scene.get("tagline", "").strip() or scene.get("shots")):
-            fail("Give every scene a heading, some text, or media; remove unused scenes.")
     try:
-        board = normalize(copy.deepcopy(data), draft=not render)
+        board = normalize(copy.deepcopy(data), draft=True)
     except (SystemExit, KeyError, TypeError, AttributeError) as exc:
         fail(str(exc))
     text(board["title"], "Film title", 120)
     choice(board.get("showrig"), "storyboard version", (1,))
-    choice(board.get("kind"), "film type", tuple(t["id"] for t in TEMPLATES))
+    if not isinstance(board.get("kind"), str) or not re.fullmatch(r"pack\.[a-z][a-z0-9-]{1,47}\.[a-z][a-z0-9-]{1,47}", board["kind"]):
+        choice(board.get("kind"), "film type", tuple(t["id"] for t in TEMPLATES))
     if not board["title"].strip():
         fail("Give the film a title.")
     choice(board["voice"]["source"], "voice source", ("none", "tts", "files"))
@@ -223,7 +226,9 @@ def validate(data: dict, root: Path, allowed: list[Path], render: bool = False) 
     choice(board["captions"]["mode"], "caption mode", ("none", "burn", "srt"))
     choice(board["style"]["titles"], "title style", ("rise", "typewriter", "none"))
     choice(board["style"]["transitions"], "transition", ("simple", "cinematic", "cuts"))
-    choice(board["style"].get("design", "clean"), "design", tuple(x["id"] for x in LOOKS))
+    design = board["style"].get("design", "clean")
+    if not isinstance(design, str) or not re.fullmatch(r"pack\.[a-z][a-z0-9-]{1,47}\.[a-z][a-z0-9-]{1,47}", design):
+        choice(design, "design", tuple(x["id"] for x in LOOKS))
     choice(board["style"].get("stage", "auto"), "stage", STAGE_IDS + ("auto",))
     choice(board["voice"].get("voice"), "voice", ("af_heart", "af_bella", "am_michael", "bf_emma", "bm_george"))
     number(board["voice"]["speed"], "Speech speed", .5, 2)
@@ -264,15 +269,52 @@ def validate(data: dict, root: Path, allowed: list[Path], render: bool = False) 
         path = resolve_media(root, value)
         if not any(path.is_relative_to(base.resolve()) for base in allowed):
             fail(f"Media is outside this studio: {Path(value).name}. Upload a replacement.")
-        if render and not path.is_file():
-            fail(f"Missing media: {Path(value).name}. Upload a replacement.")
-    if render and board["music"]["source"] == "file" and not board["music"].get("file"):
-        fail("Upload your music track or choose another music option.")
-    if render and board["voice"]["source"] == "files":
-        for scene in board["scenes"]:
-            if len(scene.get("voice", [])) != len(scene["lines"]) or any(not p for p in scene.get("voice", [])):
-                fail("Attach one audio recording for each narration line.")
+    if render:
+        issues = readiness_issues(board, root, allowed)
+        if issues:
+            fail(issues[0]["message"])
     return board
+
+
+def readiness_issues(board: dict, root: Path, allowed: list[Path]) -> list[dict]:
+    """Locate all content and file blockers using stable scene IDs for recovery."""
+    issues = []
+
+    def issue(code: str, message: str, field: str, scene_id: str | None = None) -> None:
+        issues.append({"code": code, "message": message, "field": field,
+                       "sceneId": scene_id, "panel": "scene" if scene_id else "settings"})
+
+    def check_file(value: str, field: str, scene_id: str | None = None) -> None:
+        if not value:
+            return
+        try:
+            path = resolve_media(root, value)
+            exists = path.is_file() and any(path.is_relative_to(base.resolve()) for base in allowed)
+        except (ValueError, OSError):
+            exists = False
+        if not exists:
+            issue("missing-media", f"Missing media: {Path(value).name}. Upload a replacement.", field, scene_id)
+
+    for index, scene in enumerate(board["scenes"]):
+        sid = scene["id"]
+        if not (scene.get("title", "").strip() or scene.get("tagline", "").strip() or scene.get("shots") or scene.get("image")):
+            issue("empty-scene", f"Scene {index + 1} is empty. Add text or media, or remove it.", "scene.title", sid)
+        for shot_index, shot in enumerate(scene.get("shots", [])):
+            check_file(shot.get("file") or shot.get("capture", {}).get("url", ""), f"scene.media.{shot_index}", sid)
+        check_file((scene.get("image") or {}).get("file", ""), "scene.image", sid)
+        if board["voice"]["source"] == "files":
+            for line_index, _ in enumerate(scene["lines"]):
+                recordings = scene.get("voice", [])
+                if line_index >= len(recordings) or not recordings[line_index]:
+                    issue("missing-recording", f"Scene {index + 1}, narration line {line_index + 1}: attach a recording or choose Text only.", f"scene.recording.{line_index}", sid)
+            if len(scene.get("voice", [])) > len(scene["lines"]):
+                issue("extra-recording", f"Scene {index + 1}: remove unused recordings or add their narration lines.", "scene.recording", sid)
+        for line_index, recording in enumerate(scene.get("voice", [])):
+            check_file(recording, f"scene.recording.{line_index}", sid)
+    if board["music"]["source"] == "file" and not board["music"].get("file"):
+        issue("missing-music", "Upload your music track or choose another music option.", "music.file")
+    check_file(board["music"].get("file", ""), "music.file")
+    return issues
 
 
 def resolve_media(root: Path, value: str) -> Path:
@@ -287,6 +329,8 @@ def resolve_media(root: Path, value: str) -> Path:
 def media_references(board: dict):
     """Yield mutable owners and keys for all external media references."""
     for scene in board["scenes"]:
+        if (scene.get("image") or {}).get("file"):
+            yield (scene["image"], "file"), scene["image"]["file"]
         for shot in scene.get("shots", []):
             if shot.get("file"):
                 yield (shot, "file"), shot["file"]

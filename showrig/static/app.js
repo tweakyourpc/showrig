@@ -1,3 +1,6 @@
+import {extensionsScreen, productionScreen} from './next.js';
+import {guidedMarkup, sceneRole} from './guided.js';
+
 import {libraryScreen, templateScreen, setupScreen, templateCard, visibleFilms} from './screens.js';
 
 const $ = selector => document.querySelector(selector);
@@ -14,17 +17,32 @@ function readRecentFilms() {
     return Array.isArray(ids)?ids.filter(id=>typeof id==='string').slice(0,12):null;
   } catch {return null;}
 }
-const state = {catalog:null, projects:[], capabilities:null, id:null, board:null, step:0, scene:0, estimate:null, outputs:{}, job:null, mode:'preview', dirty:false, saving:Promise.resolve(), saveTimer:null, poll:null, busy:false, proof:null, proofPoll:null, view:'library', filter:'active', search:'', sort:'recent', selection:new Set(), trash:[], setup:null, setupPlatform:null, templateCategory:'All', pendingDelete:[], recent:readRecentFilms()};
+function readLayout() {
+  const query=new URLSearchParams(location.search).get('layout');
+  if(['classic','guided'].includes(query)) return query;
+  try {return localStorage.getItem('showrig.layout.v1')==='classic'?'classic':'guided';} catch {return 'guided';}
+}
+const state = {layout:readLayout(),issues:[],checked:false,checking:false,settings:false,settingsTab:'look',showSceneIssues:false,actionMessage:'',mobilePane:'edit',catalog:null, projects:[], capabilities:null, id:null, board:null, step:0, scene:0, estimate:null, outputs:{}, job:null, mode:'preview', dirty:false, saving:Promise.resolve(), saveTimer:null, poll:null, busy:false, proof:null, proofPoll:null, view:'library', filter:'active', search:'', sort:'recent', selection:new Set(), trash:[], setup:null, setupPlatform:null, templateCategory:'All', pendingDelete:[], recent:readRecentFilms()};
 
 async function api(path, method='GET', body) {
   const headers = {'X-Showrig-Request':'1'};
   if (body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
   const response = await fetch(`/api${path}`, {method, headers, body:body instanceof FormData ? body : body ? JSON.stringify(body) : undefined});
   const result = await response.json();
-  if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Please check the information you entered.');
+  if (!response.ok) {
+    const detail=result.detail;
+    const error=new Error(typeof detail==='string'?detail:detail?.message||'Please check the information you entered.');
+    error.issues=detail?.issues;throw error;
+  }
   return result;
 }
-function notify(message='') { $('#notice').textContent=message; $('#notice').hidden=!message; }
+function notify(message='') {
+  state.actionMessage=message;
+  const inline=$('#action-notice'), settings=$('#settings-notice');
+  if(inline) inline.textContent=message;
+  if(settings) settings.textContent=message;
+  $('#notice').textContent=message;$('#notice').hidden=!message||(state.layout==='guided'&&state.view==='editor');
+}
 function activeJob() { return state.job && ['starting','running','cancelling'].includes(state.job.status); }
 function seconds(value) { return value < 60 ? `${Math.round(value)} sec` : `${Math.floor(value/60)}:${String(Math.round(value%60)).padStart(2,'0')}`; }
 function currentScene() { return state.board?.scenes[state.scene]; }
@@ -32,7 +50,8 @@ function selected(value, current) { return value === current ? ' selected' : '';
 function checked(value) { return value ? ' checked' : ''; }
 function setPath(object, path, value) { const parts=path.split('.'); const key=parts.pop(); const parent=parts.reduce((o,p)=>o[p]??= {},object); parent[key]=value; }
 function dirty() {
-  state.dirty=true;
+  state.dirty=true;state.checked=false;
+  if($('#guided-save-status')) $('#guided-save-status').textContent='Unsaved changes';
   $('#save-status').textContent='UNSAVED CHANGES';
   clearTimeout(state.saveTimer);
   state.saveTimer=setTimeout(()=>save().catch(err=>notify(err.message)),800);
@@ -50,12 +69,14 @@ async function save() {
     const response=await task;
     if (id===state.id) {
       state.estimate=response.estimate;
+      if(!state.dirty) {state.issues=response.issues||[];refreshSceneReadiness();}
+      if($('#guided-save-status')) $('#guided-save-status').textContent=state.dirty?'Unsaved changes':'Saved on this computer';
       $('#save-status').textContent=state.dirty ? 'UNSAVED CHANGES' : 'SAVED ON THIS COMPUTER';
       const badge=$('#duration'); if(badge) badge.textContent=`~ ${seconds(response.estimate.seconds)}`;
     }
     return response;
   } catch(error) {
-    if(id===state.id) {state.dirty=true; $('#save-status').textContent='NOT SAVED';}
+    if(id===state.id) {state.dirty=true; $('#save-status').textContent='NOT SAVED';if($('#guided-save-status')) $('#guided-save-status').textContent='Not saved';}
     throw error;
   }
 }
@@ -99,10 +120,12 @@ async function navigate(view) {
   history.replaceState(null,'',`#${view}`);
   notify();renderHome();
 }
-async function showNew(template='demo') {
+function updateCreationOutline(id){const template=state.catalog.templates.find(t=>t.id===id);if(!template)return;$('#new-format').value=template.format||'landscape';$('#creation-outline').innerHTML='<strong>Include these scenes</strong>'+template.prompts.map((prompt,i)=>`<label><input type="checkbox" name="sceneIndex" value="${i}" checked>${e(prompt)}</label>`).join('');}
+async function showNew(template='blank') {
+  if(!state.catalog) {notify('Still opening the studio. Try again in a moment.');return;}
   await save();
   $('#new-templates').innerHTML=state.catalog.templates.map(t=>templateCard(t,true,t.id===template)).join('');
-  $('#new-dialog').showModal();$('#new-title').focus();
+  updateCreationOutline(template);$('#creation-error').hidden=true;$('#new-dialog').showModal();$('#new-title').focus();
 }
 async function importProject(file) {
   if(!file) return;
@@ -137,24 +160,27 @@ async function copyCommand(text) {
   }
   notify('Command copied. Run it in a terminal on the Showrig host.');
 }
-async function openProject(id, step=0, recordRecent=true) {
+async function openProject(id, step=2, recordRecent=true) {
   await save();
   clearInterval(state.poll);
   clearInterval(state.proofPoll);
   const project=await api(`/projects/${id}`);
   if(recordRecent) rememberFilm(id);
-  Object.assign(state,{view:'editor',id,board:project.board,estimate:project.estimate,outputs:project.outputs,job:project.job,step,scene:0,dirty:false,mode:project.outputs.final?'final':'preview',proof:null});
+  Object.assign(state,{view:'editor',id,board:project.board,estimate:project.estimate,outputs:project.outputs,job:project.job,step,scene:0,dirty:false,mode:project.outputs.final?'final':'preview',proof:null,issues:project.issues||[],checked:false,checking:false,settings:false,showSceneIssues:false,removedScene:null,returnToReview:false,actionMessage:''});
   notify(project.missing.length ? 'Some media has moved. Replace the missing files in Story or Sound before rendering.' : '');
   $('#save-status').textContent='SAVED ON THIS COMPUTER';
   await refreshLibrary(); render();
   if(activeJob()) beginPolling();
+  if(state.layout==='guided'&&state.step===4&&!activeJob()) await checkReadiness();
 }
 function route() { updateNavigation(); if(state.id) history.replaceState(null,'',`#${state.id}/${state.step}`); }
 function renderHome() {
+  document.body.classList.remove('guided-editor');
+  updateLayoutToggle();
   updateNavigation();
   $('#breadcrumb').textContent=`Studio / ${state.view==='templates'?'Templates':state.view==='setup'?'Setup & extras':'Film library'}`;
   $('#save-status').textContent='SAVED ON THIS COMPUTER';
-  $('#app').innerHTML=state.view==='templates'?templateScreen(state):state.view==='setup'?setupScreen(state):libraryScreen(state);
+  $('#app').innerHTML=state.view==='extensions'?extensionsScreen(state):state.view==='production'?productionScreen(state):state.view==='templates'?templateScreen(state):state.view==='setup'?setupScreen(state):libraryScreen(state);
 }
 function previewMarkup() {
   return `<aside class="preview-panel"><div class="panel-heading"><span>YOUR FILM, TAKING SHAPE</span><span id="preview-scene-number"></span></div><div id="preview-content"></div><div class="preview-tip"><span class="tip-symbol" aria-hidden="true">i</span><p id="preview-tip-text">A layout sketch of your scene. Render a preview in Export to see the finished motion, timing, and sound.</p></div></aside>`;
@@ -251,11 +277,24 @@ function updateJob() {
   const container=$('#job-status'); if(!container || !state.job) return;
   const job=state.job, running=activeJob(), failed=['failed','interrupted'].includes(job.status);
   container.innerHTML=`<div class="job-card${failed?' error':''}"><strong>${e(failed?'The render needs attention':job.stage)}</strong>${running?`<progress max="${job.totalStages}" value="${job.completedStages}" aria-label="Completed render stages"></progress><div class="job-meta"><span>${job.completedStages} of ${job.totalStages} stages complete</span><span>${seconds(job.elapsed||0)} elapsed</span></div><p>Rendering continues if you close this tab.</p><button data-action="cancel"${job.status==='cancelling'?' disabled':''}>${job.status==='cancelling'?'Stopping…':'Cancel render'}</button>`:`<p>${job.status==='succeeded'?'Your film is ready. Watch it and download it on the right.':job.status==='cancelled'?'Your previous export is safe. You can edit and render again.':e(job.error||'Try rendering again.')}</p>`}<p><a href="/api/jobs/${job.id}/log" target="_blank" rel="noopener">Open render log</a></p></div>`;
-  document.querySelectorAll('[data-action="render"]').forEach(b=>b.disabled=running);
+  document.querySelectorAll('[data-action="render"]').forEach(b=>b.disabled=running||(state.layout==='guided'&&(state.checking||!state.checked||state.issues.length>0||state.dirty)));
 }
 function render() {
   if(state.view!=='editor'||!state.board) return renderHome();
   route();
+  document.body.classList.toggle('guided-editor',state.layout==='guided');
+  updateLayoutToggle();
+  if(state.layout==='guided') {
+    if(activeJob()) state.step=4;
+    $('#breadcrumb').textContent=`Studio / ${state.board.title}`;
+    $('#notice').hidden=true;
+    $('#app').innerHTML=guidedMarkup(state,{previewMarkup,look});
+    updatePreview();updateJob();updateProof();
+    if(activeJob()) document.querySelectorAll('.guided-workspace input,.guided-workspace textarea,.guided-workspace select,.guided-workspace [data-action],.guided-phases [data-action],.guided-action-buttons button:not([data-action=cancel])').forEach(control=>control.disabled=true);
+    const settings=$('#film-settings');
+    if(settings) {settings.showModal();settings.addEventListener('cancel',()=>{state.settings=false;});}
+    return;
+  }
   $('#breadcrumb').textContent=`Studio / ${state.board.title}`;
   const headings=['A small film starts here.','Find your film’s feeling.','Make room for your story.','Give it a little atmosphere.','Ready for the first showing?'];
   $('#app').innerHTML=`<div class="page-heading"><div><span class="eyebrow">${e(state.catalog.templates.find(t=>t.id===state.board.kind)?.name.toUpperCase()||'YOUR FILM')}</span><h1>${headings[state.step]}</h1><p class="muted">${e(state.board.title)}</p></div><span class="duration-pill" id="duration">~ ${seconds(state.estimate?.seconds||0)}</span></div><nav class="steps" aria-label="Film creation steps">${steps.map((s,i)=>`<button class="step${state.step===i?' active':''}" data-action="step" data-index="${i}"${activeJob()&&i!==4?' disabled':''} aria-current="${state.step===i?'step':'false'}"><span class="step-number">${i+1}</span>${s}</button>`).join('')}</nav>${activeJob()?'<p class="locked-note">Your film is rendering. Editing is paused until it finishes or you cancel.</p>':''}<div class="workspace"><section class="form-panel">${[purpose,look,story,sound,review][state.step]()}</section>${previewMarkup()}</div><footer class="actions"><button class="secondary" data-action="${state.step?'back':'library'}">← ${state.step?'Back':'Your films'}</button><span class="muted">Your work is saved as you go.</span>${state.step<4?'<button class="primary" data-action="next">Continue <span aria-hidden="true">→</span></button>':'<button class="secondary" data-action="save">Save changes</button>'}</footer>`;
@@ -271,6 +310,7 @@ async function addMedia(files, replacement=null) {
   state.busy=true;notify('Adding your media…');
   try {
     const scene=currentScene();
+    if(scene.image && replacement===null) throw new Error('This scene has a background image. Replace or remove that image before adding clips.');
     for(const file of files) {
       const asset=await uploadFile(file);
       if(!asset.info.width) throw new Error('This is an audio file. Add it in the Sound step.');
@@ -319,6 +359,98 @@ function beginProofPolling() {
   },1500);
 }
 
+function updateLayoutToggle() {
+  const toggle=$('#layout-toggle');
+  if(toggle) {toggle.textContent=state.layout==='guided'?'Classic layout':'Guided layout';toggle.title='Switch layout without changing your film';}
+}
+function refreshSceneReadiness() {
+  if(!state.board) return;
+  let ready=0;
+  state.board.scenes.forEach((scene,index)=>{
+    const issues=state.issues.filter(i=>i.sceneId===scene.id), name=document.querySelector(`[data-scene-name="${CSS.escape(scene.id)}"]`), badge=document.querySelector(`[data-scene-readiness="${CSS.escape(scene.id)}"]`);
+    if(!issues.length) ready++;
+    if(name) name.textContent=scene.title||sceneRole(state,index);
+    if(badge) {badge.textContent=issues.length?'! Needs attention':'✓ Has content';badge.className=issues.length?'needs-content':'is-ready';}
+  });
+  if($('#scene-ready-count')) $('#scene-ready-count').textContent=`${ready} of ${state.board.scenes.length} ready`;
+  if(!state.issues.some(i=>i.sceneId===currentScene()?.id&&i.field==='scene.title')) {
+    $('#scene-heading')?.removeAttribute('aria-invalid');
+    if($('#heading-issue')) $('#heading-issue').hidden=true;
+  }
+}
+async function checkReadiness() {
+  await save();
+  const id=state.id;
+  state.checking=true;state.checked=false;state.actionMessage='';
+  if(state.layout==='guided') render();
+  try {
+    const result=await api(`/projects/${id}/preflight`);
+    if(state.id!==id) return false;
+    state.issues=result.issues;state.checked=true;
+    return result.ready;
+  } catch(error) {
+    state.actionMessage=`Could not check readiness: ${error.message}. Use Recheck to try again.`;
+    throw error;
+  } finally {state.checking=false;if(state.id===id&&state.layout==='guided') render();}
+}
+function focusIssue(issue) {
+  const control=document.querySelector(`[data-focus="${CSS.escape(issue.field)}"]`);
+  if(control) {control.scrollIntoView({block:'center',behavior:'instant'});control.focus({preventScroll:true});control.classList.add('fix-highlight');}
+}
+async function reviewFilm() {
+  await save();state.settings=false;state.returnToReview=false;state.step=4;state.actionMessage='';
+  await checkReadiness();
+}
+async function guidedAction(action,target) {
+  if(action==='toggle-layout') {
+    await save();state.layout=state.layout==='guided'?'classic':'guided';state.settings=false;
+    try {localStorage.setItem('showrig.layout.v1',state.layout);} catch {}
+    const url=new URL(location.href);url.searchParams.set('layout',state.layout);history.replaceState(null,'',url);
+    render();if(state.layout==='guided'&&state.step===4) await checkReadiness();return true;
+  }
+  if(state.layout!=='guided') return false;
+  const actions=['guided-phase','guided-begin','guided-scene','guided-prev','guided-next','guided-review','guided-settings','guided-close-settings','guided-remove','guided-undo-remove','guided-mobile','fix-issue'];
+  if(!actions.includes(action)) return false;
+  if(activeJob()&&action!=='guided-mobile') {notify('Your film is rendering. Cancel the render before editing.');return true;}
+  if(action==='guided-mobile') {state.mobilePane=target.dataset.mode;render();return true;}
+  if(action==='guided-review'||action==='guided-phase'&&Number(target.dataset.index)===4) {await reviewFilm();return true;}
+  if(action==='guided-settings') {await save();state.settings=true;state.settingsTab=target.dataset.tab||'look';notify();render();return true;}
+  if(action==='guided-close-settings') {await save();state.settings=false;if(state.step===4) await checkReadiness();else render();return true;}
+  if(action==='fix-issue') {
+    const issue=state.issues[Number(target.dataset.issue)];if(!issue) return true;
+    await save();state.mobilePane='edit';state.showSceneIssues=true;state.returnToReview=true;state.actionMessage=issue.message;
+    if(issue.sceneId) {
+      const index=state.board.scenes.findIndex(s=>s.id===issue.sceneId);
+      if(index<0) {await reviewFilm();return true;}
+      state.scene=index;state.step=2;state.settings=false;
+    } else if(issue.panel==='setup') {await navigate('setup');return true;}
+    else {state.settings=true;state.settingsTab=issue.field.startsWith('style.')?'look':'audio';}
+    render();focusIssue(issue);return true;
+  }
+  await save();notify();state.mobilePane='edit';
+  if(action==='guided-begin') {state.step=2;state.scene=0;}
+  if(action==='guided-phase') {state.step=Number(target.dataset.index);}
+  if(action==='guided-scene') {const index=state.board.scenes.findIndex(s=>s.id===target.dataset.id);if(index>=0){state.scene=index;state.step=2;}}
+  if(action==='guided-prev') {state.scene=Math.max(0,state.scene-1);state.step=2;}
+  if(action==='guided-next') {
+    const issue=state.issues.find(i=>i.sceneId===currentScene().id);
+    if(issue) {state.showSceneIssues=true;state.actionMessage=issue.message;render();focusIssue(issue);return true;}
+    if(state.scene===state.board.scenes.length-1) {await reviewFilm();return true;}
+    state.scene++;state.step=2;
+  }
+  if(action==='guided-undo-remove'&&state.removedScene) {
+    if(state.board.scenes.length>=40) throw new Error('Remove a scene before restoring this one.');
+    const {scene,index}=state.removedScene;state.board.scenes.splice(Math.min(index,state.board.scenes.length),0,scene);state.scene=state.board.scenes.findIndex(s=>s.id===scene.id);state.removedScene=null;dirty();await save();
+  }
+  if(action==='guided-remove') {
+    if(state.board.scenes.length===1) return true;
+    const scene=structuredClone(currentScene()), index=state.scene;
+    state.removedScene={scene,index};state.board.scenes.splice(index,1);state.scene=Math.min(index,state.board.scenes.length-1);
+    dirty();await save();state.actionMessage='Scene removed from the film. Use Undo remove to restore it.';
+  }
+  state.showSceneIssues=false;render();return true;
+}
+
 document.addEventListener('input',event=>{
   const target=event.target;
   if(target.id==='film-search') {state.search=target.value;const pos=target.selectionStart;renderHome();$('#film-search').focus();$('#film-search').setSelectionRange(pos,pos);return;}
@@ -348,9 +480,18 @@ document.addEventListener('change',async event=>{
 
   try {
     const target=event.target;
+    if(target.name==='template') updateCreationOutline(target.value);
+    if(target.id==='scene-picker') {await guidedAction('guided-scene',{dataset:{id:target.value}});return;}
+    if(target.id==='pack-file' && target.files[0]) {const status=$('#pack-status');try {if(target.files[0].size>256000) throw new Error('Pack must be smaller than 256 KB.');await api('/extensions','POST',JSON.parse(await target.files[0].text()));[state.catalog,state.extensions]=await Promise.all([api('/catalog'),api('/extensions')]);renderHome();$('#pack-status').textContent='Pack installed. Its templates and looks are ready to use.';}catch(error){status.textContent=error.message;}return;}
     if(target.id==='import-input' && target.files[0]) {await importProject(target.files[0]);target.value='';}
     if(target.id==='media-input') await addMedia(target.files);
     if(target.id==='replace-input') await addMedia(target.files,Number(target.dataset.index));
+    if(target.id==='scene-image-input' && target.files[0]) {
+      const file=target.files[0];
+      if(!/\.(png|jpe?g|webp)$/i.test(file.name)) throw new Error('Choose a PNG, JPEG or WebP image.');
+      const asset=await uploadFile(file);
+      currentScene().image={...(currentScene().image||{}),file:asset.path};dirty();await save();notify();render();
+    }
     if(target.id==='music-input' && target.files[0]) {
       notify('Adding your music…');const asset=await uploadFile(target.files[0]);
       if(!asset.info.audio) throw new Error('Choose a file with audio for the music track.');
@@ -363,7 +504,7 @@ document.addEventListener('change',async event=>{
       while(scene.voice.length<scene.lines.length) scene.voice.push('');
       scene.voice[Number(target.dataset.recordingLine)]=asset.path;dirty();await save();notify();render();
     }
-    if(['music.source','voice.voice','kind'].includes(target.dataset.field) || (target.dataset.lines!==undefined && state.board.voice.source==='files')) {await save();render();}
+    if(['music.source','voice.source','voice.voice','kind'].includes(target.dataset.field) || (target.dataset.lines!==undefined && state.board.voice.source==='files')) {await save();render();}
   } catch(error) {notify(error.message);}
 });
 document.addEventListener('dragover',event=>{if(event.target.closest('#dropzone')) {event.preventDefault();$('#dropzone').classList.add('dragover');}});
@@ -375,13 +516,18 @@ document.addEventListener('click',async event=>{
   const target=event.target.closest('[data-action]');if(!target || target.disabled) return;
   const action=target.dataset.action;
   try {
+    if(await guidedAction(action,target)) return;
     if(action==='new') {await showNew();return;}
-    if(action==='import') {$('#import-input').click();return;}
     if(action==='clear-recent') {
       state.recent=[];
       const persisted=storeRecentFilms();renderRecentFilms();
       notify(persisted?'Recent films cleared. Your films are still in Film library.':'Recent films cleared for this session. This browser could not save the history setting.');return;
     }
+    if(action==='import'||action==='import-project') {$('#import-input').click();return;}
+    if(action==='extensions'||action==='production') {await navigate(action);return;}
+    if(action==='pick-media') {$('#media-input').click();return;}
+    if(action==='download-pack') {const pack=state.extensions.packs.find(p=>p.id===target.dataset.id);const url=URL.createObjectURL(new Blob([JSON.stringify(pack,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=pack.id+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
+    if(action==='remove-pack') {try {await api('/extensions/'+encodeURIComponent(target.dataset.id),'DELETE');[state.catalog,state.extensions]=await Promise.all([api('/catalog'),api('/extensions')]);renderHome();notify('Pack removed. Built-in templates and looks stay ready.');}catch(error){notify(error.message);}return;}
     if(action==='new-template') {await showNew(target.dataset.template);return;}
     if(action==='templates') {await navigate('templates');return;}
     if(action==='template-category') {state.templateCategory=target.dataset.category;renderHome();return;}
@@ -446,32 +592,38 @@ document.addEventListener('click',async event=>{
     if(action==='move-scene') {const index=state.scene+Number(target.dataset.direction);const [scene]=state.board.scenes.splice(state.scene,1);state.board.scenes.splice(index,0,scene);state.scene=index;dirty();render();}
     if(action==='remove-media') {const scene=currentScene();scene.shots.splice(Number(target.dataset.index),1);if(!scene.shots.length) scene.kind='card';dirty();render();}
     if(action==='replace-media') {$('#replace-input').dataset.index=target.dataset.index;$('#replace-input').click();}
+    if(action==='replace-scene-image') {$('#scene-image-input').click();}
+    if(action==='remove-scene-image') {delete currentScene().image;dirty();await save();render();}
     if(action==='voice-source') {state.board.voice.source=target.dataset.id;dirty();render();}
     if(action==='check-speech') {
       target.disabled=true;target.textContent='Checking local speech…';const voice=state.board.voice.voice;
-      try {const result=await api('/speech/check','POST',{voice});state.capabilities.speech[voice]=result;render();}
+      try {const result=await api('/speech/check','POST',{voice});state.capabilities.speech[voice]=result;state.checked=false;render();}
       finally {target.disabled=false;}return;
     }
     if(action==='render') {
+      if(state.layout==='guided'&&(!await checkReadiness())) {notify('Fix the listed issues before rendering.');return;}
       target.disabled=true;
       try {await save();state.job=await api(`/projects/${state.id}/render`,'POST',{mode:target.dataset.mode});notify();render();beginPolling();}
       finally {target.disabled=false;}
     }
     if(action==='cancel') {state.job=await api(`/jobs/${state.job.id}/cancel`,'POST',{});updateJob();}
     if(action==='output-mode') {state.mode=target.dataset.mode;updatePreview();}
-  } catch(error) {notify(error.message);}
+  } catch(error) {
+    if(error.issues) {state.issues=error.issues;state.checked=true;if(state.layout==='guided') render();}
+    notify(error.message);
+  }
 });
 $('#new-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=event.target.querySelector('[type=submit]');button.disabled=true;
-  try {const data=new FormData(event.target);const project=await api('/projects','POST',{title:data.get('title'),template:data.get('template')});$('#new-dialog').close();event.target.reset();await openProject(project.id);}
-  catch(error){notify(error.message);$('#new-dialog').close();}finally{button.disabled=false;}
+  try {const data=new FormData(event.target);const project=await api('/projects','POST',{title:data.get('title'),template:data.get('template'),format:data.get('format'),sceneIndices:data.getAll('sceneIndex').map(Number)});$('#new-dialog').close();event.target.reset();await openProject(project.id);}
+  catch(error){$('#creation-error').textContent=error.message;$('#creation-error').hidden=false;}finally{button.disabled=false;}
 });
 window.addEventListener('beforeunload',event=>{if(state.dirty){event.preventDefault();event.returnValue='';}});
 async function start() {
   try {
-    [state.catalog,state.capabilities,state.setup]=await Promise.all([api('/catalog'),api('/capabilities'),api('/setup')]);state.setupPlatform=state.setup.systems[state.setup.platform]?state.setup.platform:'linux';await refreshLibrary();
+    [state.catalog,state.capabilities,state.setup,state.extensions,state.contract]=await Promise.all([api('/catalog'),api('/capabilities'),api('/setup'),api('/extensions'),api('/studio-contract')]);state.setupPlatform=state.setup.systems[state.setup.platform]?state.setup.platform:'linux';await refreshLibrary();
     const [id,step]=location.hash.slice(1).split('/');
-    if(['library','templates','setup'].includes(id)) {state.view=id;renderHome();} else if(id) await openProject(id,Math.max(0,Math.min(4,Number(step)||0)),false);else renderHome();
+    if(['library','templates','setup','extensions','production'].includes(id)) {state.view=id;renderHome();} else if(id) await openProject(id,Math.max(0,Math.min(4,Number(step)||2)),false);else renderHome();
     if(!state.capabilities.ready) notify(`Some video tools need setup: ${state.capabilities.missing.join(', ')}. You can still work on your storyboard.`);
   } catch(error) {notify(error.message);if(state.catalog) renderHome();else $('#app').innerHTML='<p class="muted">The studio could not connect. Reload the page after starting Showrig.</p>';}
 }

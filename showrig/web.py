@@ -22,19 +22,19 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
-from . import __version__, library, runtime, tools
+from . import __version__, extensions, library, runtime, tools
 from .platforms import acquire_lock, release_lock
 from .board import markdown
 from .jobs import Jobs, write_json
 from .project import film_lock, probe, slug
-from .studio import LOOKS, STAGES, TEMPLATES, estimate, media_references, new_board, resolve_media, validate
+from .studio import LOOKS, STAGES, TEMPLATES, estimate, media_references, new_board, readiness_issues, resolve_media, validate
 
 STATIC = Path(__file__).parent / "static"
 MEDIA_TYPES = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".mkv", ".webm", ".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 UPLOAD_LIMIT = 1024 * 1024 * 1024
 PACKAGE_LIMIT = 4 * 1024 * 1024 * 1024
 # The six-second samples in the stage picker, recorded from the same clip so only the stage differs.
-SAMPLES = Path(os.environ.get("SHOWRIG_PROOFS") or "/home/chris/Videos/showrig-proofs/stage-vocabulary-20261029")
+SAMPLES = Path(os.environ.get("SHOWRIG_PROOFS") or str(Path(__file__).parent / "samples"))
 STAGE_SAMPLES = {stage["id"]: stage["sample"] for stage in STAGES if stage.get("sample")}
 PROOF_DIR = ".proofs"
 
@@ -143,7 +143,7 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
 
     def proof_size(fmt: dict) -> dict:
         """A draft proof renders at half size, so double the film's frame to land on a real one."""
-        factor = 3840 / max(fmt["width"], fmt["height"])
+        factor = min(1, 2560 / max(fmt["width"], fmt["height"]))
         return {"width": int(fmt["width"] * factor) // 2 * 2,
                 "height": int(fmt["height"] * factor) // 2 * 2, "fps": 30}
 
@@ -156,7 +156,67 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
     def catalog():
         stages = [{**stage, "sample": stage.get("sample") if (SAMPLES / (stage.get("sample") or "")).is_file() else None}
                   for stage in STAGES]
-        return {"templates": TEMPLATES, "looks": LOOKS, "stages": stages}
+        return {"templates": TEMPLATES + extensions.entries(projects, "templates"),
+                "looks": LOOKS + extensions.entries(projects, "themes"), "stages": stages}
+
+    @app.get("/api/extensions")
+    def extension_catalog():
+        return extensions.catalog(projects)
+
+    @app.post("/api/extensions", status_code=201)
+    def install_extension(body: dict):
+        if len(json.dumps(body)) > 256_000:
+            raise ValueError("Pack must be smaller than 256 KB.")
+        with library_guard:
+            return extensions.install(projects, body)
+
+    @app.delete("/api/extensions/{pack_id}")
+    def uninstall_extension(pack_id: str):
+        """Remove one installed pack; removal is refused while any film still uses its entries."""
+        if not re.fullmatch(r"[a-z][a-z0-9-]{1,47}", pack_id):
+            raise ValueError("Choose an installed pack with a valid ID.")
+        prefix = f"pack.{pack_id}."
+        with library_guard:
+            used = []
+            for file in projects.glob("*/showrig.json"):
+                if file.parent.name.startswith(".") or file.parent.is_symlink():
+                    continue
+                try:
+                    board = json.loads(file.read_text())
+                except (OSError, ValueError):
+                    continue
+                if not isinstance(board, dict):
+                    continue
+                style = board.get("style") if isinstance(board.get("style"), dict) else {}
+                if str(board.get("kind", "")).startswith(prefix) or str(style.get("design", "")).startswith(prefix):
+                    used.append(board.get("title", file.parent.name))
+            if used:
+                raise HTTPException(409, "This pack is still used by: " + ", ".join(used[:3]) + ("…" if len(used) > 3 else ""))
+            path = projects / ".extensions" / (pack_id + ".json")
+            if path.is_symlink() or not path.is_file():
+                raise HTTPException(404, "This pack is not installed.")
+            path.unlink(missing_ok=True)
+        return {"removed": pack_id}
+
+    @app.get("/api/studio-contract")
+    def studio_contract():
+        return {"schema": 1, "version": __version__, "purpose": "Create local films and keep editable source artifacts",
+                "network": "No cloud or AI connection is made by the studio",
+                "control": {"manual": "available", "externalAgent": "Same validated project and render API; no built-in agent runner",
+                            "assisted": "Local drafting is available via showrig draft; review before production"},
+                "artifacts": ["showrig.json", "STORYBOARD.md", "FilmCraft .fcproj", "EffectCraft .ecproj", "MP4", "optional SRT", "editable ZIP"],
+                "operations": {"catalog": "GET /api/catalog", "create": "POST /api/projects", "read": "GET /api/projects/{id}",
+                               "save": "PUT /api/projects/{id}", "preflight": "GET /api/projects/{id}/preflight",
+                               "render": "POST /api/projects/{id}/render", "package": "GET /api/projects/{id}/package"},
+                "writeHeader": {"X-Showrig-Request": "1"},
+                "rules": ["Save incomplete drafts; preflight before rendering", "Preserve scene IDs and user edits",
+                          "Do not install tools or download models during production", "Only use media inside the selected library",
+                          "Keep editable projects alongside renders", "Claims for promotional films require source evidence"],
+                "extensions": {"schema": 1, "supported": ["templates", "themes"], "executablePlugins": False},
+                "integrations": [{"app": "FilmCraft", "status": "integrated", "role": "Editable timeline and video export"},
+                                 {"app": "EffectCraft", "status": "integrated", "role": "Editable motion titles"},
+                                 {"app": "FigCraft", "status": "design workflow", "role": "Native interface design and prototypes"},
+                                 {"app": "PhotoCraft", "status": "planned adapter", "role": "Editable backdrop and image preparation"}]}
 
     @app.get("/samples/{stage_id}.mp4")
     def stage_sample(stage_id: str):
@@ -182,7 +242,7 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
                     missing.append(name)
             except (OSError, subprocess.SubprocessError):
                 missing.append(name)
-        return {"ready": not missing, "missing": missing, "blender": bool(tools.blender()),
+        return {"ready": not missing, "detectionOnly": True, "missing": missing, "blender": bool(tools.blender()),
                 "speech": speech, "offline": True, "activeJob": jobs.read(jobs.active) if jobs.active else None}
 
     @app.get("/api/setup")
@@ -280,7 +340,17 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
         title = body.get("title", "Untitled film")
         if not isinstance(title, str) or not title.strip() or len(title) > 120:
             raise ValueError("Enter a film title of up to 120 characters.")
-        board = new_board(title, body.get("template", "demo"))
+        board = new_board(title, body.get("template", "demo"), TEMPLATES + extensions.entries(projects, "templates"))
+        if "sceneIndices" in body:
+            indices = body["sceneIndices"]
+            if not isinstance(indices, list) or not indices or any(type(i) is not int or not 0 <= i < len(board["scenes"]) for i in indices) or len(set(indices)) != len(indices):
+                raise ValueError("Include at least one valid scene from the outline.")
+            board["scenes"] = [board["scenes"][i] for i in indices]
+        if body.get("format"):
+            dimensions = {"landscape": (1920, 1080), "vertical": (1080, 1920), "square": (1080, 1080)}
+            if body["format"] not in dimensions:
+                raise ValueError("Choose landscape, vertical or square.")
+            board["format"].update(zip(("width", "height"), dimensions[body["format"]]))
         project_id = slug(title)[:65] + "-" + uuid.uuid4().hex[:8]
         root = projects / project_id
         (root / "assets").mkdir(parents=True)
@@ -301,6 +371,7 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
             except ValueError:
                 missing.append(value)
         return {"id": project_id, "board": board, "estimate": estimate(board, root), "missing": missing,
+                "issues": readiness_issues(board, root, allowed),
                 "outputs": {m: result_manifest(root, m) for m in ("preview", "final")}, "job": jobs.latest(project_id)}
 
     @app.put("/api/projects/{project_id}")
@@ -314,7 +385,28 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
                 (root / "STORYBOARD.md").write_text(markdown(board))
         except SystemExit as exc:
             raise HTTPException(409, str(exc))
-        return {"board": board, "estimate": estimate(board, root)}
+        return {"board": board, "estimate": estimate(board, root), "issues": readiness_issues(board, root, allowed)}
+
+    def preflight_issues(board: dict, root: Path) -> list[dict]:
+        issues = readiness_issues(board, root, allowed)
+        if board["voice"]["source"] == "tts" and any(s["lines"] for s in board["scenes"]) and not speech.get(board["voice"]["voice"], {}).get("ready"):
+            issues.append({"code": "voice-unchecked", "message": "Check the selected offline voice, or choose Text only.",
+                           "sceneId": None, "panel": "settings", "field": "voice.voice"})
+        available = capabilities()
+        if not available["ready"]:
+            issues.append({"code": "missing-tools", "message": "Video tools need setup: " + ", ".join(available["missing"]),
+                           "sceneId": None, "panel": "setup", "field": "setup"})
+        if board["style"]["showcase3d"] and not tools.blender():
+            issues.append({"code": "missing-blender", "message": "This stage needs Blender. Install it or choose a flat stage.",
+                           "sceneId": None, "panel": "settings", "field": "style.stage"})
+        return issues
+
+    @app.get("/api/projects/{project_id}/preflight")
+    def preflight(project_id: str):
+        root = project_path(project_id)
+        board = validate(json.loads((root / "showrig.json").read_text()), root, allowed)
+        issues = preflight_issues(board, root)
+        return {"ready": not issues, "issues": issues}
 
     @app.post("/api/projects/{project_id}/assets")
     async def upload(project_id: str, file: UploadFile):
@@ -361,13 +453,10 @@ def create_app(projects: Path, host: str = "0.0.0.0", port: int = 0) -> FastAPI:
         mode = body.get("mode", "preview")
         if mode not in ("preview", "final"):
             raise ValueError("Choose preview or final export.")
-        board = validate(json.loads((root / "showrig.json").read_text()), root, allowed, render=True)
-        if board["voice"]["source"] == "tts" and not speech.get(board["voice"]["voice"], {}).get("ready"):
-            raise ValueError("Check your selected offline voice in the Sound step before rendering.")
-        if not capabilities()["ready"]:
-            raise ValueError("Required video tools are unavailable. See the setup status.")
-        if board["style"]["showcase3d"] and not tools.blender():
-            raise ValueError("Blender is unavailable. Turn off the 3D showcase in Look.")
+        board = validate(json.loads((root / "showrig.json").read_text()), root, allowed)
+        issues = preflight_issues(board, root)
+        if issues:
+            raise HTTPException(422, {"message": issues[0]["message"], "issues": issues})
         try:
             return jobs.start(root, mode)
         except ValueError as exc:

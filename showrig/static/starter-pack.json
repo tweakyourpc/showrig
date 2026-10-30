@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "id": "showrig-craft",
+  "name": "Explain the craft",
+  "author": "Showrig contributors",
+  "license": "MIT",
+  "templates": [
+    {
+      "id": "evidence-story",
+      "name": "Show your working",
+      "category": "Teach",
+      "description": "Explain a creative tool through a real task, the editable result and the evidence behind each claim.",
+      "prompts": ["What can the viewer make?", "Demonstrate a real task", "Show the editable source files", "Explain a verified integration", "Invite the viewer to try it"]
+    }
+  ],
+  "themes": [
+    {"id": "moss", "name": "Moss & paper", "accent": "#A3CEB7", "background": "#182B28", "titles": "rise", "transitions": "simple", "pushIn": 3},
+    {"id": "iris", "name": "Evening iris", "accent": "#D3C7F2", "background": "#282338", "titles": "rise", "transitions": "cuts", "pushIn": 0}
+  ]
+}

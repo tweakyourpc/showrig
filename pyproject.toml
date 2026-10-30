@@ -1,6 +1,6 @@
 [project]
 name = "showrig"
-version = "0.2.0"
+version = "0.3.0a1"
 description = "An offline procedural film studio: editable FilmCraft timelines and local video exports, controlled from your browser."
 readme = "README.md"
 license = "MIT"
