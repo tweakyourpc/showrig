@@ -4,10 +4,17 @@
 
 **An offline procedural film studio. Make a video in your local browser. Keep the editable FilmCraft project.**
 
-Showrig 0.2 brings a navigable film library, 14 scene-structure templates, six visual looks, recoverable
-film-history cleanup, and a platform-aware Setup & extras page. There are no accounts or hosted
-rendering services. Python and native tools run on your computer; the browser is the control room.
-The [tweakyourpc promo](examples/tweakyourpc-promo) was built with the same procedural pipeline.
+Showrig 0.3.0a1 keeps the navigable film library, 14 scene-structure templates, six visual looks,
+recoverable film-history cleanup, and the platform-aware Setup & extras page, and adds a guided editor
+that builds a film from plain prompts, an extension-pack system with a starter pack, and bundled 3D
+stage samples you can drop straight into a template. There are no accounts or hosted rendering
+services. Python and native tools run on your computer; the browser is the control room. Templates,
+looks and stages are hand-made rather than generated: the same storyboard renders the same film every
+time, with AI strictly optional.
+The [tweakyourpc promo](examples/tweakyourpc-promo) was built with the same procedural pipeline, and
+the [v0.3.0a1 release](https://github.com/tweakyourpc/showrig/releases/tag/v0.3.0a1) ships a 2:52 film
+made by Showrig pitching itself: staged, titled, narrated and rendered offline, delivered as both an
+MP4 and an editable FilmCraft project.
 
 Showrig asks the questions a director and producer would answer: what kind of film, what it should
 look like, who speaks, what plays underneath. You bring footage, recordings and music, or let Showrig
@@ -37,8 +44,11 @@ pip install -e .
 showrig web
 ```
 
-This opens the offline studio with **Film library**, **Templates**, and **Setup & extras** navigation.
-The editor has five steps: **Purpose → Look → Story → Sound → Export**.
+This opens the offline studio with **Film library**, **Templates**, **Extensions**, and
+**Setup & extras** navigation. A guided view makes a first film conversational: answer each scene's
+prompts, fill its media slots (upload your own pictures and clips, or point a slot at a local page and
+let Showrig screenshot it), check the readiness list, and render. The full editor keeps its five steps:
+**Purpose → Look → Story → Sound → Export**.
 Choose a demo, showcase, announcement, explainer, tutorial, comparison, case study, event invitation,
 event recap, social short, photo story, interview highlight, mini lesson, or blank canvas; then
 write your scenes and optionally add images, video clips, music, or recordings.
@@ -48,9 +58,17 @@ Download the editable ZIP to keep imported and generated media with the timeline
 folder and run its included `PREPARE-EDIT.py` helper before opening the project in FilmCraft; this
 binds packaged media to its new location without changing the original film or your timeline edits.
 
+Generated narration sits in the project as ordinary WAV files on the Voice track: plan your script with
+the offline voice, then swap any of those WAVs for your own recording and keep the rest of the cut.
+Captions keep coming from the written lines, so the swap never desyncs them.
+
 Search and sort your films, bulk archive finished projects, or move films to Trash. Restore them at
 any time, or explicitly confirm permanent deletion from Trash. This upgrade does not clean up or
 delete any existing film automatically.
+
+The **Extensions** page lists packs of optional content and integrations, with a starter pack ready to
+load and per-piece readiness checks that show exactly what each pack unlocks on this machine. Bundled
+3D stage samples (`showrig/samples/`) give the Blender showcase real footage before you add your own.
 
 Use **Clear** beside **RECENT FILMS** to clear this browser's recent list while keeping all films in
 the library. The cleared list persists across reloads. Opening or creating a film adds it back to
@@ -219,14 +237,21 @@ Tools are found on `PATH` and in `~/Work/ArtCraft`. Override with `FILMCRAFT_CLI
 `BLENDER`, `NODE`, `SHOWRIG_PLAYWRIGHT`, `SHOWRIG_TTS_PYTHON` (a Python with `kokoro` installed),
 `ARTCRAFT_HOME` and `OLLAMA_HOST`.
 
+The studio drives your installed apps rather than any cloud service: FilmCraft and EffectCraft through
+their ArtCraft command-line and MCP bridges, Blender headless through its Python driver, Chromium
+through Playwright. The same wiring runs on Windows, Mac, or Linux hosts; the Setup & extras page
+states what each platform still needs.
+
 ## Status
 
-0.2, a local studio with native renderers. Known limits:
+0.3.0a1, the studio-next alpha: guided editor, extension packs and bundled samples join the unchanged
+procedural pipeline. Known limits:
 
 - The 3D showcase is framed for landscape films.
 - EffectCraft does not render text-animator range selectors yet, so titles animate whole lines
   (the typewriter style keys the text itself).
 - Only one post module so far (credits).
+- The guided view and extension packs are new; the five-step editor remains the complete path.
 
 ## Extending and checking the studio
 
@@ -260,6 +285,8 @@ environment that permits Chromium and local network connections.
 setup instructions and mobile layouts. It requires an explicit `SHOWRIG_TEST_URL` pointing to an
 isolated QA library and removes only the synthetic films it creates. Both browser checks block
 outside-origin requests. Use a separate broker reservation when another Showrig instance is running.
+`scripts/next-check.mjs` exercises the guided editor (scene prompts, readiness, audio settings)
+against an isolated QA library the same way.
 
 ## Checking a machine
 
